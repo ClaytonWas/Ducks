@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duck Game Login</title>
+    <link rel="stylesheet" href="/styles/login.css">
+    <link href='https://fonts.googleapis.com/css?family=Inter' rel='stylesheet'> <!-- Inter Font Import From Google API -->
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h3></h3> <!-- Titles look tacky, but maybe add for presenations. -->
+            <form method="POST" action="/login">
+                <div class="formInput">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="formInput">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <div class="formButton">
+                    <button type="submit">Login</button>
+                    <button type="button" onclick="window.location.href='/register'">Create Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
