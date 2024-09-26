@@ -10,17 +10,17 @@ To get started with this project, you'll need to install the necessary dependenc
 
 2. **Navigate to repository directory**
 
-3. **Install dependancies**
+3. **Install dependancies** <br />
     In the directory terminal:
     ```bash
     npm install
 
 ## Getting Started
 
-1. **Run the server**
+1. **Run the server** <br />
     In the directory terminal:
     ```bash
     node server.js
 
-2. **Navigate to host**
+2. **Navigate to host** <br /> 
     Currently localhost:3000/
