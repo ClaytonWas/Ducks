@@ -5,14 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Duck Game Login</title>
     <link rel="stylesheet" href="/styles/login.css">
-    <script src="/public/scripts/loginResponseHandler.js"></script>
     <link href='https://fonts.googleapis.com/css?family=Inter' rel='stylesheet'> <!-- Inter Font Import From Google API -->
 </head>
 <body>
+    <script src="/scripts/loginResponseHandler.js"></script>
+
     <div class="container">
+        <p id="updateMessage"></p>
         <div class="card">
             <h3></h3> <!-- Titles look tacky, but maybe add for presenations. -->
-            <form method="POST" action="/login">
+            <form id="form">
                 <div class="formInput">
                     <label for="username">Username</label>
                     <input type="text" id="username" name="username" required>
