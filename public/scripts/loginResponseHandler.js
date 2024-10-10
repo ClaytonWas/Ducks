@@ -3,10 +3,10 @@
 //Goal, create a response check to handle if login responses are correct
 //Optional but good, get the register account working on the same webpage such that inputing values into the form can also be submitted as registration
 async function responseCheck(){
-    form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        
-        const form = document.getElementById('form')
+    loginButton = document.getElementById('loginButton')
+    createAccountButton = document.getElementById('createAccountButton')
+
+    loginButton.addEventListener('click', async () => {        
         const username = document.getElementById('username').value
         const password = document.getElementById('password').value
         const updateMessage = document.getElementById('updateMessage')
@@ -37,7 +37,37 @@ async function responseCheck(){
             updateMessage.textContent = 'Unexpected error occurred.'
             updateMessage.style.color = 'red'
         }
-        
+        return false
+    })
+
+    createAccountButton.addEventListener('click', async () => {
+        const username = document.getElementById('username').value
+        const password = document.getElementById('password').value
+        const updateMessage = document.getElementById('updateMessage')
+
+        try {
+            const response = await fetch('/register', {
+                method:'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            })
+    
+            if (response.status === 201) {
+                updateMessage.textContent = result.message;
+            } else {
+                const result = await response.json();
+                if (result.message) {
+                    updateMessage.textContent = result.message;
+                } else {
+                    updateMessage.textContent = 'Unexpected error occurred.';
+                    updateMessage.style.color = 'red';
+                }
+            }
+        } catch (error) {
+            console.error(error.message)
+            updateMessage.textContent = 'Unexpected error occurred.'
+            updateMessage.style.color = 'red'
+        }
         return false
     })
 };

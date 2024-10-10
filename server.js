@@ -93,21 +93,37 @@ app.get('/logout', (req, res) => {
 });
 
 // GET route for registering new users, hashing passwords, and adding to database
-app.get('/register', (req, res) => {
-    const username = "parsa"
-    const password = "foobar"
+app.post('/register', (req, res) => {
+    const {username, password} = req.body;
 
-    // Generate salt and hash the password
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password are required.' });
+    }
+
     bcrypt.genSalt(10, (error, salt) => {
-        bcrypt.hash(password, salt, (error, hash) => {
-            users[username].salt = salt;
-            users[username].hash = hash;
-            res.send('User registered successfully!');
-            console.log(salt)
-            console.log(hash)
+        bcrypt.hash(password, salt, (error, hash) => {    
+            db.get('SELECT * FROM accounts WHERE username = ?', [username], (error, row) => {
+                if(error){
+                    console.error(error.message)
+                    return res.status(500).json({message: 'Database read error.'})
+                }
+                if(!row) {
+                    db.run('INSERT INTO accounts (username, password, salt, hash) VALUES (?, ?, ?, ?)', [username, password, salt, hash], (error) => {
+                        if(error) {
+                            console.error(error.message)
+                            return res.status(500).json({message: 'Database read error.'})
+                        } else {
+                            console.log(username, password, salt, hash)
+                            return res.status(201).json({message: 'Account Successfully Created.'})
+                        }
+                    })
+                } else {
+                    return res.status(409).json({message: 'Username Taken.'})
+                }
+            })
         })
     })
-});
+})
 
 // Server start
 app.listen(port, () => {

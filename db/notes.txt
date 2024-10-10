@@ -1,3 +1,3 @@
-Build databases by running 'sqlite3 ./accounts.db < ./schema.sql' in the ./db/ terminal.
+Build databases by running 'sqlite3 ./accounts.db < ./accounts.sql' in the ./db/ terminal.
 
 In a future build, the db should be created by each person. They will have to run this command to generate the template db.
