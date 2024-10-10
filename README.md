@@ -34,7 +34,7 @@ To get started with this project, you'll need to install the necessary dependenc
 2. **Run the server** <br />
     In the directory terminal:
     ```bash
-    node server.js
+    node loginServer.js
     ```
 
 3. **Navigate to host** <br /> 
