@@ -18,11 +18,11 @@ app.set('views', './views')
 
 // SQLite database interaction functions
 const db = new sqlite3.Database(path.join(__dirname, 'db/accounts.db'), (error) => {
-    if(error){
+    if (error) {
         console.error(error.message)
         return res.status(500).json({message: 'Database read error.'})
     }
-})
+});
 
 // Express-session for parsing request bodies and managing sessions
 app.use(express.urlencoded({extended: true}))
@@ -30,8 +30,8 @@ app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
 app.use(session({
     secret: 'supersecret',       // Secret key for signing session cookies
-    resave: false,               // Avoid resaving unchanged sessions
-    saveUninitialized: false     // Don't save uninitialized sessions
+    resave: false,
+    saveUninitialized: false
 }));
 
 // GET route for the home page
@@ -46,9 +46,7 @@ app.get('/login', (req, res) => {
 
 // POST route for login
 app.post('/login', (req, res) => {
-    var user //Function-scope tracker for an account existing in the database
-
-    const {username, password} = req.body;
+    const {username, password} = req.body
 
     db.get('SELECT * FROM accounts WHERE username = ?', [username], (error, row) => {
         if(error){
@@ -74,42 +72,24 @@ app.post('/login', (req, res) => {
     })
 });
 
-// GET route for the restricted user home page
-app.get('/home', (req, res) => {
-    if(req.session.user){
-        res.render('home', {username: req.session.user.username});
-    }else{
-        req.session.error = 'Access denied! Please log in.';
-        res.redirect('/login');
-    }
-});
-
-// GET route for logging out
-app.get('/logout', (req, res) => {
-    req.session.destroy((error) => {
-        if (error) return res.send('Error logging out');
-        res.redirect('/')
-    })
-});
-
-// GET route for registering new users, hashing passwords, and adding to database
+// POST route for registering new users
 app.post('/register', (req, res) => {
     const {username, password} = req.body;
 
     if (!username || !password) {
-        return res.status(400).json({ message: 'Username and password are required.' });
+        return res.status(400).json({message: 'Username and password are required.'})
     }
 
     bcrypt.genSalt(10, (error, salt) => {
         bcrypt.hash(password, salt, (error, hash) => {    
             db.get('SELECT * FROM accounts WHERE username = ?', [username], (error, row) => {
-                if(error){
+                if (error) {
                     console.error(error.message)
                     return res.status(500).json({message: 'Database read error.'})
                 }
-                if(!row) {
+                if (!row) {
                     db.run('INSERT INTO accounts (username, password, salt, hash) VALUES (?, ?, ?, ?)', [username, password, salt, hash], (error) => {
-                        if(error) {
+                        if (error) {
                             console.error(error.message)
                             return res.status(500).json({message: 'Database read error.'})
                         } else {
@@ -123,9 +103,39 @@ app.post('/register', (req, res) => {
             })
         })
     })
-})
+});
+
+// GET route for the restricted user home page
+app.get('/home', (req, res) => {
+    if (req.session.user) {
+        res.render('home', {username: req.session.user.username});
+    } else {
+        req.session.error = 'Access denied! Please log in.'
+        res.redirect('/login');
+    }
+});
+
+// GET route for logging out
+app.get('/logout', (req, res) => {
+    req.session.destroy((error) => {
+        if (error) {
+            return res.send('Error logging out')
+        }
+        res.redirect('/')
+    })
+});
+
+// GET route for joining the game world
+app.get('/join', (req, res) => {
+    if (req.session.user) {
+        res.sendFile(path.join(__dirname, 'views', 'world.html'))
+    } else {
+        req.session.error = 'Access denied! Please log in.'
+        res.redirect('/login');
+    }
+});
 
 // Server start
 app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
+    console.log(`Server running on http://localhost:${port}`)
 });
