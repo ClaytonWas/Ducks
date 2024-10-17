@@ -1,11 +1,15 @@
 {
   "dependencies": {
     "bcrypt": "^5.1.1",
+    "cookie": "^1.0.1",
+    "cors": "^2.8.5",
     "ejs": "^3.1.10",
     "express": "^4.21.0",
     "express-session": "^1.18.0",
     "fetch": "^1.1.0",
+    "jsonwebtoken": "^9.0.2",
     "socket.io": "^4.8.0",
+    "socket.io-client": "^4.8.0",
     "sqlite3": "^5.1.7"
   },
   "name": "web-development-final-project",
