@@ -32,9 +32,13 @@ To get started with this project, you'll need to install the necessary dependenc
 
 
 2. **Run the server** <br />
-    In the directory terminal:
+    In directory terminal 1:
     ```bash
-    node loginServer.js
+    node profileServer.js
+    ```
+    In directory terminal 2:
+    ```bash
+    node gameServer.js
     ```
 
 3. **Navigate to host** <br /> 
