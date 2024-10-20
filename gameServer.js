@@ -50,9 +50,11 @@ io.on('connection', (socket) => {
         console.log(`${socket.user.username} disconnected`)
     })
 
+    // Server Recieves Message From A Socket
     socket.on('sendGlobalUserMessage', (message) => {
         message = `[${socket.user.username}]: ${message}`
         console.log(message)
+        // Server Broadcasts This Message To All Connected Sockets
         io.emit('recieveGlobalUserMessage', message)
     })
 })

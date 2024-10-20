@@ -1,10 +1,13 @@
+#gameDiv {
+    height: 75vh;
+    width: 80vw;
+}
+
 #gameWindow {
-    height: 40vh;
-    width: 40vw;
+    height: inherit;
 }
 
 #messagesLog {
-    display: flex;
     width: 80vw;
 }
 

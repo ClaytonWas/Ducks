@@ -43,3 +43,9 @@ To get started with this project, you'll need to install the necessary dependenc
 
 3. **Navigate to host** <br /> 
     Currently localhost:3000/
+
+
+
+# TODO:
+Using the client side 'onMouseClick' function, get the position of the mouse click and apply that position to an object of Player class for the user with that ID.
+This will need to be verified by the gameServer, which will then need to emit that players position update to all connected sockets.
