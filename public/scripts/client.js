@@ -11,14 +11,27 @@ socket.on("connect_error", (err) => {
 });
 
 // Client Recieving Welcome Message
-
 socket.on('welcome', (message) => {
     console.log(message)
 });
 
-// Client Sending Text Message
-function sendMessage() {
-    const message = "Hello world!";
-    socket.emit('globalUserMessage', message);
-}
-sendMessage();
+document.addEventListener('DOMContentLoaded', () => {
+    // Client-Side Message Sent To Game Server
+    sendMessageButton = document.getElementById('sendUserMessage')
+    sendMessageButton.addEventListener('click', async () => {  
+        userInput = document.getElementById('userMessage')
+        userMessage = String(userInput.value)
+        userInput.value = ''
+        if(userMessage) {
+            socket.emit('sendGlobalUserMessage', userMessage);
+        } else {
+            console.log('Message could not be sent!')
+        }
+    })
+
+    // Client-Side Message Recieved From The Game Server
+    chatlog = document.getElementById('messagesLog')
+    socket.on('recieveGlobalUserMessage', (message) => {
+        chatlog.value += message + '\n'
+    })
+})

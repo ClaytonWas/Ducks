@@ -1,0 +1,22 @@
+#gameWindow {
+    height: 40vh;
+    width: 40vw;
+}
+
+#messagesLog {
+    display: flex;
+    width: 80vw;
+}
+
+#messagesSender {
+    display: flex;
+}
+
+#userMessage {
+    width: 70vw;
+}
+
+#sendUserMessage {
+    width: 10vw;
+}
+

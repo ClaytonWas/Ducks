@@ -50,8 +50,10 @@ io.on('connection', (socket) => {
         console.log(`${socket.user.username} disconnected`)
     })
 
-    socket.on('globalUserMessage', (message) => {
+    socket.on('sendGlobalUserMessage', (message) => {
+        message = `[${socket.user.username}]: ${message}`
         console.log(message)
+        io.emit('recieveGlobalUserMessage', message)
     })
 })
 

@@ -4,11 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ducks</title>
+    <link rel="stylesheet" href="/styles/game.css">
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="./scripts/client.js"></script>
+    <script src="./scripts/client.js" defer></script>
 </head>
 <body>
-    <p>If you're seeing this you've logged into an account.</p>
-    <p>Next step is to implement gameServer.js with socket.io, host it on another port, and show that here.</p>
+    <div id = "gameDiv">
+        <div id="gameWindow"></div>
+        <div id="messagesHandler">
+            <textarea id="messagesLog" readonly></textarea>
+            <div id="messagesSender">
+                <input id="userMessage">
+                <button id="sendUserMessage">Send</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
