@@ -25,8 +25,14 @@ meshes.add(floor1Mesh)
 scene.add(meshes)
 
 // Pass the token when connecting to the game server
+const token = localStorage.getItem('token')
+if (!token) {
+    window.location.href = '/login'
+}
 const socket = io('http://localhost:3030', {
-    withCredentials: true
+    auth: {
+        token: token
+    }
 });
 
 // Client Side Connection Error Messages

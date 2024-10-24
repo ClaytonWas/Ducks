@@ -1,6 +1,6 @@
 // Server for profile creation and edits.
 /*
-*   Note: This system signs JSON web tokens and their subsequent cookies when a user logs in, this may result in issues in production environments.
+*   Note: This system signs JSON web tokens when a user logs in, this may result in issues in production environments.
 *           If a user changes their account data, it is pushed to the database without directly communicating with the game servers.
 *           Any database updates that happen from the game servers need to be passed to here if they relate to account information.
 */
@@ -18,7 +18,7 @@ const ejs = require('ejs')
 
 const app = express()
 const port = 3000                       // Port for profile server.
-const secretKey = 'supersecret'         // Secret key for signing session cookies.
+const secretKey = 'supersecret'         // Secret key for signing session token.
 
 
 
@@ -79,19 +79,14 @@ app.post('/login', (req, res) => {
                     /*
                     *   On valid logins, the express-session browser is assigned with the data of the row.
                     *       ^       (this is pretty unsafe and in production should just be the accounts id and username)
-                    * 
-                    *   The relevant express-session data is then used as the data section of a signed JWT.
-                    *   A cookie containing the JWT is stored of the browser session so it can be used through CORS to validate users for game servers.
-                    *   It's set up this way to allow a user to connect to any server if there are multiple to chose from.
                     */
                     req.session.user = row
-                    userJWT = jsonWebToken.sign(
+                    token = jsonWebToken.sign(
                         {id: req.session.user.id, username: req.session.user.username},
                         secretKey,
-                        {expiresIn: '1h'}
+                        {expiresIn: '3h'}
                     )
-                    res.cookie('token', userJWT, { httpOnly: true, secure: false })
-                    return res.status(200).json({userJWT})
+                    return res.status(200).json({token})
                 }else{
                     console.error(error)
                     return res.status(401).json({message: 'Invalid password.'})

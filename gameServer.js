@@ -25,13 +25,13 @@ app.use(cors({
 }))
 
 io.use((socket, next) => {
-    const cookies = cookie.parse(socket.handshake.headers.cookie)
+    let token = socket.handshake.auth.token
 
-    if (!cookies.token) {
+    if (!token) {
         return next();                      // Pass response code here.
     }
 
-    jsonWebToken.verify(cookies.token, secretKey, (error, userData) => {
+    jsonWebToken.verify(token, secretKey, (error, userData) => {
         if (error) {
             return next()                   // Pass response code here.
         }

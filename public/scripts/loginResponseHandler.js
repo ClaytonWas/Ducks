@@ -16,6 +16,8 @@ async function responseCheck(){
                 body: JSON.stringify({username, password})
             })
             if (response.ok) {
+                data = await response.json()
+                localStorage.setItem('token', data.token);
                 window.location.href = '/home'
             } else {
                 data = await response.json()
