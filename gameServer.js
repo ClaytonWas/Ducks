@@ -2,7 +2,6 @@ const express = require('express')
 const http = require('http')
 const { Server } = require('socket.io')
 const cors = require('cors')
-const cookie = require('cookie')
 const jsonWebToken = require('jsonwebtoken')
 
 const app = express()
@@ -13,7 +12,7 @@ const io = new Server(server, {
     cors: {
         origin: "http://localhost:3000",
         methods: ["GET", "POST"],
-        credentials: true                   // Allow cookies to be sent
+        credentials: true
     }
 })
 
