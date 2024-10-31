@@ -10,7 +10,7 @@ const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
 // Adding A Mesh To The Three.js Scene
-gameWindow = document.getElementById('gameWindow')
+const gameWindow = document.getElementById('gameWindow')
 renderer.setSize(gameWindow.clientWidth, gameWindow.clientHeight)
 gameWindow.appendChild(renderer.domElement)
 const floor1 = new THREE.PlaneGeometry(20, 10)
@@ -43,10 +43,9 @@ function onMouseClick(event) {
 
     if (intersects.length > 0) {
         const point = intersects[0].point           // Grabs the first point of intersection.
-        console.log(point)
 
         if (point) {
-            movePlayer(userId, point)
+            movePlayer(socket.user.id, point)
             socket.emit('updatePlayerPosition', point)
         }
     }
@@ -59,7 +58,7 @@ function movePlayer(playerId, point) {
     // Check if the player exists in the scene before attempting to move
     if (playersInScene[playerId]) {
         playersInScene[playerId].mesh.position.set(point.x, point.y, point.z);
-        console.log(`${playersInScene[playerId].name} moved to (x:${playersInScene[playerId].mesh.position.x}, y:${playersInScene[playerId].mesh.position.y}, z:${playersInScene[playerId].mesh.position.z})`);
+        console.log(`${playersInScene[playerId].username} moved.`);
     } else {
         console.error(`Player with ID ${playerId} does not exist in the scene.`);
     }
@@ -113,10 +112,8 @@ function onMouseClick(event) {
 
     if (intersects.length > 0) {
         const point = intersects[0].point           // Grabs the first point of intersection.
-        console.log(point)
 
         if (point) {
-            movePlayer(userId, point)
             socket.emit('updatePlayerPosition', point)
         }
     }
@@ -129,51 +126,24 @@ function movePlayer(playerId, point) {
     // Check if the player exists in the scene before attempting to move
     if (playersInScene[playerId]) {
         playersInScene[playerId].mesh.position.set(point.x, point.y, point.z);
-        console.log(`${playersInScene[playerId].name} moved to (x:${playersInScene[playerId].mesh.position.x}, y:${playersInScene[playerId].mesh.position.y}, z:${playersInScene[playerId].mesh.position.z})`);
+        console.log(`${playersInScene[playerId].name} moved.`);
     } else {
         console.error(`Player with ID ${playerId} does not exist in the scene.`);
     }
    
 }
 
-function instantiatePlayer(id, name, position){
-    const clientPlayer = new Player({id, name, x: position.x, y: position.y, z: position.z})
+function instantiatePlayer(id, name, color, position){
+    let clientPlayer = new Player(id, name, color, position.x, position.y, position.z)
     playersInScene[id] = clientPlayer
     scene.add(clientPlayer.mesh)
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    gameWindow.addEventListener('click', onMouseClick)
 
-    socket.on('userData', (userData) => {
-        userId = userData.id
-        userName = userData.userName
-        userPosition = userData.position
-
-        console.log('Received user data')
-
-        instantiatePlayer(userId, userName, userPosition)
-
-        // Event Listener For Clicks on Game Window
-        gameWindow.addEventListener('click', onMouseClick)
-
-    })
-
-    
-    socket.on('joined_user_data', (joinedUserData) => {
-
-        joinedUserId = joinedUserData.id
-        joinedUserName = joinedUserData.username
-        joinedUserPosition = joinedUserData.position
-    
-        instantiatePlayer(joinedUserId, joinedUserName, joinedUserPosition)
-    })
-    
-    socket.on('new_user_data', (newUserData) => {
-        newUserId = newUserData.id
-        newUserName = newUserData.username
-        newUserPosition = newUserData.position
-
-        instantiatePlayer(newUserId, newUserName, newUserPosition)
+    socket.on('sendPlayerData', (player) => {
+        instantiatePlayer(player.id, player.username, player.color, player.position)
     })
 
     // Client-Side Message Sent To Game Server
@@ -196,28 +166,21 @@ document.addEventListener('DOMContentLoaded', () => {
     })
 
     //Update other player's position on screen
-    socket.on('broadcastPlayerPosition', (playerMoveData) => {
-        playerId = playerMoveData.playerId
-        playerPoint = playerMoveData.playerPoint
-
-        if (playerId != userId){
-           
-            movePlayer(playerId, playerPoint)
-        }
-        
+    socket.on('broadcastPlayerPosition', (movementData) => {
+        movePlayer(movementData.id, movementData.position)
     })
 
     //Remove players from mesh that have disconnected
-    socket.on('userDisconnected', (disconnectedId) => {
-        const disconnectedPlayer = playersInScene[disconnectedId];
+    socket.on('userDisconnected', (id) => {
+        const disconnectedPlayer = playersInScene[id];
         if (disconnectedPlayer) {
             scene.remove(disconnectedPlayer.mesh);
             disconnectedPlayer.mesh.geometry.dispose();
             disconnectedPlayer.mesh.material.dispose();
-            delete playersInScene[disconnectedId];
-            console.log(`Player with id ${disconnectedId} removed from scene`);
+            delete playersInScene[id];
+            console.log(`Player instance with id ${id} removed from scene.`);
         } else {
-            console.warn(`Player with id ${disconnectedId} not found in playersInScene.`);
+            console.warn(`Player with id ${id} not found in playersInScene.`);
         }
     })
 
