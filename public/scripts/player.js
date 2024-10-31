@@ -1,5 +1,5 @@
 class Player {
-    constructor(id, name, color = 0x00ff00, x = 0, y = 0) {
+    constructor(id, name, color = 0x00ff00, x = 0, y = 0, z = 0) {
       this.id = id; // Unique user id
       this.name = name; // username
       this.color = color; // temporarily using coloured capsules as models
@@ -10,7 +10,7 @@ class Player {
       this.geometry = new THREE.BoxGeometry(1, 1, 1);
       this.material = new THREE.MeshBasicMaterial( { color: color } );
       this.mesh = new THREE.Mesh(this.geometry, this.material);
-      
+      this.mesh.position.set(this.x, this.y, this.z) 
     }
 
     // Method to move the player
