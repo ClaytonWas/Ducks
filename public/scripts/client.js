@@ -58,7 +58,7 @@ function movePlayer(playerId, point) {
     // Check if the player exists in the scene before attempting to move
     if (playersInScene[playerId]) {
         playersInScene[playerId].mesh.position.set(point.x, point.y, point.z);
-        console.log(`${playersInScene[playerId].username} moved.`);
+        console.log(`${playersInScene[playerId].username} moved`);
     } else {
         console.error(`Player with ID ${playerId} does not exist in the scene.`);
     }
@@ -121,12 +121,60 @@ function onMouseClick(event) {
     
 }
 
+function linearMovement(playerId, targetPoint, duration = 1000) {
+    if (!playersInScene[playerId]) {
+        console.error(`Player with ID ${playerId} does not exist in the scene.`);
+        return;
+    }
+
+    const player = playersInScene[playerId];
+    const startX = player.x;
+    const startY = player.y;
+    const startZ = player.z;
+    const deltaX = targetPoint.x - startX;
+    const deltaZ = targetPoint.z - startZ;
+    const startTime = performance.now();
+
+    console.log(`Starting point is (${startX}, ${startY}, ${startZ})`)
+    console.log(`Destination point is (${targetPoint.x}, ${targetPoint.y}, ${targetPoint.z})`)
+
+    function animate(currentTime) {
+        const elapsedTime = currentTime - startTime;
+        const progress = Math.min(elapsedTime / duration, 1); // Normalized time (0 to 1)
+
+        // Calculate the current position based on progress
+        const incX = startX + deltaX * progress;
+        const incZ = startZ + deltaZ * progress;
+
+        // Update the player's position
+        player.mesh.position.set(incX, targetPoint.y, incZ);
+
+        console.log(`(${incX.toFixed(4)}, ${targetPoint.y.toFixed(4)}, ${incZ.toFixed(4)})`)
+
+        // If the movement isn't complete, request the next animation frame
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        } else {
+            // Ensure the player reaches the exact target point at the end
+            player.mesh.position.set(targetPoint.x, targetPoint.y, targetPoint.z);
+            player.x = targetPoint.x
+            player.y = targetPoint.y
+            player.z = targetPoint.z
+        }
+    }
+   
+    // Start the animation
+    requestAnimationFrame(animate);
+}
+
+//Legacy function - teleports player
 function movePlayer(playerId, point) { 
 
     // Check if the player exists in the scene before attempting to move
     if (playersInScene[playerId]) {
+        linearMovement(playerId, point)
         playersInScene[playerId].mesh.position.set(point.x, point.y, point.z);
-        console.log(`${playersInScene[playerId].name} moved.`);
+        console.log(`${playersInScene[playerId].name} moved to {${point.x}, ${point.y}, ${point.z}}`);
     } else {
         console.error(`Player with ID ${playerId} does not exist in the scene.`);
     }
@@ -167,7 +215,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     //Update other player's position on screen
     socket.on('broadcastPlayerPosition', (movementData) => {
-        movePlayer(movementData.id, movementData.position)
+        //movePlayer(movementData.id, movementData.position)
+        linearMovement(movementData.id, movementData.position)
     })
 
     //Remove players from mesh that have disconnected
