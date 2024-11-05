@@ -4,7 +4,36 @@ const { Server } = require('socket.io')
 const cors = require('cors')
 const jsonWebToken = require('jsonwebtoken')
 const { posix } = require('path')
+const { emit, resourceUsage } = require('process')
 
+// Game Server Time Module
+const dateTimeAPIurl = 'http://worldtimeapi.org/api/timezone/America/Toronto'
+let worldDateTime = new Date(1999, 1, 1, 9, 10, 0, 0)
+
+async function getTimeFromAPI() {
+    try {
+        const response = await fetch(dateTimeAPIurl)
+        if(!response.ok) {
+            if(response.status === 404) {
+                throw new Error ('dateTimeAPI Not Found, Setting Default dateTime.')
+            } else if (response.status === 500) {
+                throw new Error ('dateTimeAPI Down, Setting Default dateTime.')
+            } else {
+                throw new Error ('Something Went Wrong Fetching dateTimeAPI.')
+            }
+        }
+        const data = await response.json()
+        worldDateTime = new Date(data.datetime)
+        console.log(`Server Time: ${worldDateTime}`)
+    } catch (error) {
+        console.error('Error With Fetching dateTimeAPI:', error)
+        console.log(`Server Time: ${worldDateTime}`)
+    }
+    return worldDateTime
+} 
+getTimeFromAPI()
+
+// Setting Up Server
 const app = express()
 const port = 3030
 const server = http.createServer(app)
@@ -45,11 +74,10 @@ io.use((socket, next) => {
 
 
 
-
-
-
-
-
+async function emitWorldDateTime() {
+    worldDateTime = await getTimeFromAPI()
+    io.emit('sendWorldTime', worldDateTime)
+}
 
 // Send connected players map to the new connection.
 function emitPlayerMap(socket) {
@@ -83,6 +111,7 @@ io.on('connection', (socket) => {
     emitPlayerMap(socket)
     addToPlayerMap(socket)
     emitNewPlayer(socket)
+    socket.emit('sendWorldTime', worldDateTime)
 
     socket.on('disconnect', () => {
         console.log(`${socket.user.username} disconnected`)
@@ -126,3 +155,7 @@ io.engine.on("connection_error", (error) => {
 server.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`)
 })
+
+
+//Call DateTimeAPI every miniute
+setInterval(emitWorldDateTime, 60000)

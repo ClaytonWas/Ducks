@@ -262,6 +262,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    socket.on('sendWorldTime', (date) => {
+        let gameServerTime = new Date(date)
+        let gameServerTimeString = gameServerTime.toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true })
+        document.getElementById('worldDateTime').textContent = gameServerTimeString
+
+        let currentHour = gameServerTime.getHours()
+        if (currentHour > 12 && currentHour < 20) { //between 1-7pm
+            currentHour = currentHour % 12
+            directionalLight.intensity = currentHour/12 + .3
+        } else if (currentHour >= 20) {
+            currentHour = currentHour % 12
+            directionalLight.intensity = currentHour/12
+        } else {
+            directionalLight.intensity = currentHour/12
+        }
+        console.log(currentHour)
+    })
+
     socket.on('sendPlayerData', (player) => {
         instantiatePlayer(player.id, player.username, player.color, player.position)
     })
