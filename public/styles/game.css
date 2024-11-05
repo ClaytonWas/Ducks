@@ -23,3 +23,6 @@
     width: 10vw;
 }
 
+#worldDateTimeDiv {
+    display: flex;
+}

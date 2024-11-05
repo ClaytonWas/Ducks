@@ -2,20 +2,21 @@
 const scene = new THREE.Scene()
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
 const renderer = new THREE.WebGLRenderer()
+const raycaster = new THREE.Raycaster()
+const mouse = new THREE.Vector2()
+
+// Initial Camera Position
 camera.position.x = 0
 camera.position.y = 15
 camera.position.z = 15
 camera.rotation.x = -0.6
-
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
 
 // Adding A Floorplane To The Three.js Scene
 const gameWindow = document.getElementById('gameWindow')
 renderer.setSize(gameWindow.clientWidth, gameWindow.clientHeight)
 gameWindow.appendChild(renderer.domElement)
 const floor1Geometry = new THREE.PlaneGeometry(20, 10)
-const floor1Material = new THREE.MeshBasicMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide })
+const floor1Material = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide })
 const floor1Mesh = new THREE.Mesh(floor1Geometry, floor1Material)
 floor1Mesh.position.set(0, 0, -10)
 floor1Mesh.rotation.set(-Math.PI/2, 0, 0)
@@ -27,12 +28,12 @@ scene.add(floors)
 
 // Adding Objects To The Three.js Scene
 const box1Geometry = new THREE.BoxGeometry(2, 1, 2)
-const box1Material = new THREE.MeshBasicMaterial({ color: 0x12ABC1 })
+const box1Material = new THREE.MeshStandardMaterial({ color: 0x12ABC1 })
 const box1Mesh = new THREE.Mesh(box1Geometry, box1Material)
 box1Mesh.position.set(5, 0.5, -10)
 
 const box2Geometry = new THREE.BoxGeometry(1, 2, 1)
-const box2Material = new THREE.MeshBasicMaterial({ color: 0xAA1100 })
+const box2Material = new THREE.MeshStandardMaterial({ color: 0xAA1100 })
 const box2Mesh = new THREE.Mesh(box2Geometry, box2Material)
 box2Mesh.position.set(-7, 1, -10)
 
@@ -41,6 +42,19 @@ const objects = new THREE.Group()
 objects.add(box1Mesh)
 objects.add(box2Mesh)
 scene.add(objects)
+
+// Three.js Lighting System
+const ambientLight = new THREE.AmbientLight(0x404040);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
+directionalLight.position.set(1, 10, -10)
+const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 5);
+
+renderer.shadowMap.enabled = true
+directionalLight.castShadow = true
+
+scene.add(ambientLight)
+scene.add(directionalLight)
+scene.add(directionalLightHelper)
 
 //User attributes
 let userId;
@@ -224,6 +238,14 @@ const toolbarInputs = {
         camera.rotation.x = 0
         camera.rotation.y = 0
         camera.rotation.z = 0
+    },
+    '-': () => {
+        console.log('Decreasing Sunlight Intensity')
+        directionalLight.intensity -= 0.1
+    },
+    '=': () => {
+        console.log('Increasing Sunlight Intensity')
+        directionalLight.intensity += 0.1
     }
 };
 
@@ -239,6 +261,24 @@ document.addEventListener('DOMContentLoaded', () => {
             toolbarInputs[key]();
         }
     });
+
+    socket.on('sendWorldTime', (date) => {
+        let gameServerTime = new Date(date)
+        let gameServerTimeString = gameServerTime.toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true })
+        document.getElementById('worldDateTime').textContent = gameServerTimeString
+
+        let currentHour = gameServerTime.getHours()
+        if (currentHour > 12 && currentHour < 20) { //between 1-7pm
+            currentHour = currentHour % 12
+            directionalLight.intensity = currentHour/12 + .3
+        } else if (currentHour >= 20) {
+            currentHour = currentHour % 12
+            directionalLight.intensity = currentHour/12
+        } else {
+            directionalLight.intensity = currentHour/12
+        }
+        console.log(currentHour)
+    })
 
     socket.on('sendPlayerData', (player) => {
         instantiatePlayer(player.id, player.username, player.color, player.position)
