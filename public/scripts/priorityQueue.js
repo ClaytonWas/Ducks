@@ -1,5 +1,5 @@
 // Code taken from https://www.geeksforgeeks.org/implementation-priority-queue-javascript/
-class PriorityQueue {
+export default class PriorityQueue {
     constructor() {
         this.heap = [];
     }
@@ -70,15 +70,15 @@ class PriorityQueue {
         return item;
     }
  
-    add(item) {
-        this.heap.push(item);
+    add(node, priority) {
+        this.heap.push([node, priority]);
         this.heapifyUp();
     }
  
     heapifyUp() {
         let index = this.heap.length - 1;
-        while (this.hasParent(index) && this.parent(index)
-            > this.heap[index]) {
+        while (this.hasParent(index) && this.parent(index)[1]
+            > this.heap[index][1]) {
             this.swap(this.getParentIndex(index), index);
             index = this.getParentIndex(index);
         }
@@ -88,11 +88,11 @@ class PriorityQueue {
         let index = 0;
         while (this.hasLeftChild(index)) {
             let smallerChildIndex = this.getLeftChildIndex(index);
-            if (this.hasRightChild(index) && this.rightChild(index)
-                < this.leftChild(index)) {
+            if (this.hasRightChild(index) && this.rightChild(index)[1]
+                < this.leftChild(index)[1]) {
                 smallerChildIndex = this.getRightChildIndex(index);
             }
-            if (this.heap[index] < this.heap[smallerChildIndex]) {
+            if (this.heap[index][1] < this.heap[smallerChildIndex][1]) {
                 break;
             } else {
                 this.swap(index, smallerChildIndex);
