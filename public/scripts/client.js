@@ -20,32 +20,15 @@ const gameWindow = document.getElementById('gameWindow')
 renderer.setSize(gameWindow.clientWidth, gameWindow.clientHeight)
 gameWindow.appendChild(renderer.domElement)
 const floor1Geometry = new THREE.PlaneGeometry(20, 10)
-const floor1Material = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide })
+const floor1Material = new THREE.MeshStandardMaterial({ color: 0xaaaaaa })
 const floor1Mesh = new THREE.Mesh(floor1Geometry, floor1Material)
 floor1Mesh.position.set(0, 0, -10)
 floor1Mesh.rotation.set(-Math.PI/2, 0, 0)
 
 // Three.js Mesh Array For Worlds Floorplan
 const floors = new THREE.Group()
-floors.add(floor1Mesh)
-scene.add(floors)
-
-// Adding Objects To The Three.js Scene
-const box1Geometry = new THREE.BoxGeometry(2, 1, 2)
-const box1Material = new THREE.MeshStandardMaterial({ color: 0x12ABC1 })
-const box1Mesh = new THREE.Mesh(box1Geometry, box1Material)
-box1Mesh.position.set(5, 0.5, -10)
-
-const box2Geometry = new THREE.BoxGeometry(1, 2, 1)
-const box2Material = new THREE.MeshStandardMaterial({ color: 0xAA1100 })
-const box2Mesh = new THREE.Mesh(box2Geometry, box2Material)
-box2Mesh.position.set(-7, 1, -10)
-
-// Three.js Mesh Array For Impassable Objects
 const objects = new THREE.Group()
-objects.add(box1Mesh)
-objects.add(box2Mesh)
-scene.add(objects)
+
 
 // Three.js Lighting System
 const ambientLight = new THREE.AmbientLight(0x404040);
@@ -187,8 +170,36 @@ document.addEventListener('DOMContentLoaded', () => {
         // Check if the pressed key has a corresponding action
         if (toolbarInputs[key]) {
             toolbarInputs[key]();
-        }
+        } 
     });
+
+    socket.on('recieveWorldData', (world) => {
+        let floorData = world.floors
+        let objectData = world.objects
+
+        floorData.forEach(floor => {
+            let Geometry = new THREE.PlaneGeometry(floor.geometry.width, floor.geometry.height)
+            let Material = new THREE.MeshStandardMaterial({ color: floor.color })
+            let Mesh = new THREE.Mesh(Geometry, Material)
+            Mesh.position.set(floor.position.x, floor.position.y, floor.position.z)
+            Mesh.rotation.set(floor.rotation.x, floor.rotation.y, floor.rotation.z)
+            floors.add(Mesh)
+        })
+
+        objectData.forEach(object => {
+            if (object.type === "box") {
+                var Geometry = new THREE.BoxGeometry(object.geometry.width, object.geometry.height, object.geometry.depth)
+            }
+            let Material = new THREE.MeshStandardMaterial({ color: object.color })
+            let Mesh = new THREE.Mesh(Geometry, Material)
+            Mesh.position.set(object.position.x, object.position.y, object.position.z)
+            Mesh.rotation.set(object.rotation.x, object.rotation.y, object.rotation.z)
+            objects.add(Mesh)
+        })
+
+        scene.add(floors)
+        scene.add(objects)
+    })
 
     socket.on('sendWorldTime', (date) => {
         let gameServerTime = new Date(date)

@@ -1,0 +1,29 @@
+{
+    "floors": [
+        {
+            "id": 1,
+            "geometry": { "width": 20, "height": 10},
+            "position": { "x": 0, "y": 0, "z": -10 },
+            "rotation": { "x": -1.5707963267948966, "y": 0, "z": 0 },
+            "color": "#aaaaaa"
+        }
+    ],
+    "objects": [
+        {
+            "id": 1,
+            "type": "box",
+            "geometry": { "width": 5, "height": 1, "depth": 2},
+            "position": { "x": 3, "y": 0.5, "z": -10 },
+            "rotation": { "x": 0, "y": 0, "z": 0 },
+            "color": "#aaaaaa"
+        },
+        {
+            "id": 2,
+            "type": "box",
+            "geometry": { "width": 1, "height": 2, "depth": 1},
+            "position": { "x": -7, "y": 1, "z": -10 },
+            "rotation": { "x": 0, "y": 0, "z": 0 },
+            "color": "#aa1100"
+        }
+    ]
+}

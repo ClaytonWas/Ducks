@@ -6,6 +6,13 @@ const jsonWebToken = require('jsonwebtoken')
 const { posix } = require('path')
 const { emit, resourceUsage } = require('process')
 
+// World Data
+const world = require('./scenes/testScene2.json')
+
+async function sendWorldData(socket, world) {
+    socket.emit('recieveWorldData', world)
+}
+
 // Game Server Time Module
 const dateTimeAPIurl = 'http://worldtimeapi.org/api/timezone/America/Toronto'
 let worldDateTime = new Date(1999, 1, 1, 9, 10, 0, 0)
@@ -32,6 +39,7 @@ async function getTimeFromAPI() {
     return worldDateTime
 } 
 getTimeFromAPI()
+
 
 // Setting Up Server
 const app = express()
@@ -108,6 +116,7 @@ io.on('connection', (socket) => {
     
     console.log(`${socket.user.username} connected`)
 
+    sendWorldData(socket, world)
     emitPlayerMap(socket)
     addToPlayerMap(socket)
     emitNewPlayer(socket)
