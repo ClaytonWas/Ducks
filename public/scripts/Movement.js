@@ -204,7 +204,7 @@ export default class Movement {
         // Set up the raycaster with the start position and direction
         this.raycaster.set(new THREE.Vector3(start.x, start.y, start.z), direction);
 
-        console.log(this.raycaster)
+        //console.log(this.raycaster)
         
         // Calculate the distance between start and end
         const distance = this.euclidean_distance(start, end)
@@ -219,19 +219,19 @@ export default class Movement {
             }
         });
 
-        console.log(meshes)
+        //console.log(meshes)
 
         // Perform raycasting to detect intersections
         const intersects = this.raycaster.intersectObjects(meshes, true);
         
-        console.log('Intersection objects: ', intersects)
+        //console.log('Intersection objects: ', intersects)
 
         // Filter intersections to only those within the range of the start to end line
         const filteredIntersects = intersects.filter(intersect => intersect.distance <= distance);
 
-        console.log('Filtered intersection objects ', filteredIntersects)
+        //console.log('Filtered intersection objects ', filteredIntersects)
 
-        console.log(filteredIntersects.length > 0)
+        //console.log(filteredIntersects.length > 0)
 
         // Return true if there are any objects detected, false otherwise
         return [filteredIntersects.length > 0, filteredIntersects];
@@ -272,7 +272,7 @@ export default class Movement {
     
             if ((this.euclidean_distance(currPoint, destPoint) <= 0.25) || (!this.#detectObstaclesBool(startPoint, destPoint))) {
                 var destPointApprox = currPoint
-                console.log('Path found')
+                //console.log('Path found')
                 break
             }
     
@@ -368,7 +368,7 @@ export default class Movement {
     
             const moveToNextSegment = () => {
                 if (currentSegment >= path.length - 1) {
-                    console.log('Reached the final destination.');
+                    //console.log('Reached the final destination.');
                     resolve(); // Resolve the promise when the entire path is complete
                     return;
                 }
@@ -440,18 +440,18 @@ export default class Movement {
     async masterMovement(playerId, startPoint, destPoint) {
         let [intersectsFlag, intersectObjects] = this.#detectObstacles(startPoint, destPoint);
     
-        console.log('Intersects flag is ', intersectsFlag);
-        console.log('Starting point is ', startPoint);
-        console.log('Destination point is ', destPoint);
-        console.log('Euclidean distance between the points is ', this.euclidean_distance(startPoint, destPoint));
+        //console.log('Intersects flag is ', intersectsFlag);
+        //console.log('Starting point is ', startPoint);
+        //console.log('Destination point is ', destPoint);
+        //console.log('Euclidean distance between the points is ', this.euclidean_distance(startPoint, destPoint));
     
         if (intersectsFlag) {
             const intersectionPoint = intersectObjects[0].point;
-            console.log('Point of intersection with the object is', intersectionPoint);
+            //console.log('Point of intersection with the object is', intersectionPoint);
     
             //const bufferDistance = this.bufferDistance;
             const pointBeforeIntersection = this.#getPointBeforeIntersection(startPoint, intersectionPoint);
-            console.log('Point before intersection is', pointBeforeIntersection);
+            //console.log('Point before intersection is', pointBeforeIntersection);
      
             let path = this.#aStarSearch(pointBeforeIntersection, destPoint);
     
@@ -459,8 +459,8 @@ export default class Movement {
             await this.linearMovementConstant(playerId, pointBeforeIntersection);
     
             if (path.length > 0) {
-                console.log('Optimal path is:', path);
-                console.log('Last path point is ', path[path.length - 1]);
+                //console.log('Optimal path is:', path);
+                //console.log('Last path point is ', path[path.length - 1]);
                 
                 // Now follow the path
                 await this.followPathOnlyConstant(playerId, path);
@@ -469,8 +469,8 @@ export default class Movement {
                 await this.linearMovementConstant(playerId, destPoint)
             }
         } else {
-            console.log('No point of intersection found');
-            console.log('Using linear movement to move');
+            //console.log('No point of intersection found');
+            //console.log('Using linear movement to move');
             await this.linearMovementConstant(playerId, destPoint);
         }
     }
