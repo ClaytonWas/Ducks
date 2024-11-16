@@ -4,22 +4,67 @@ const { Server } = require('socket.io')
 const cors = require('cors')
 const jsonWebToken = require('jsonwebtoken')
 const { posix } = require('path')
-const { emit, resourceUsage } = require('process')
+const { emit, resourceUsage, config } = require('process')
 
-// World Data
-const world = require('./scenes/testScene2.json')
-
-async function sendWorldData(socket, world) {
-    socket.emit('recieveWorldData', world)
+// Config
+const SHIP = {
+    PORT: 3030,
+    SECRET_KEY: 'runescapefan',
+    PROFILE_SERVER: 'http://localhost:3000',
+    TIME_API: 'http://worldtimeapi.org/api/timezone/America/Toronto',
+    QUOTE_API: 'https://api.api-ninjas.com/v1/quotes?category=happiness'
 }
 
-// Game Server Time Module
-const dateTimeAPIurl = 'http://worldtimeapi.org/api/timezone/America/Toronto'
+// Globals
+const world = require('./scenes/testScene2.json')
+const playersInServer = new Map()
+
+// Default Time
 let worldDateTime = new Date(1999, 1, 1, 9, 10, 0, 0)
 
+// Server
+const app = express()
+const server = http.createServer(app)
+const io = new Server(server, {
+    cors: {
+        origin: SHIP.PROFILE_SERVER,
+        methods: ["GET", "POST"],
+        credentials: true
+    }
+})
+
+// Middleware for CORS
+app.use(cors({
+    origin: SHIP.PROFILE_SERVER,
+    methods: ["GET", "POST"],
+    credentials: true
+}))
+
+// Authenticating Users
+io.use((socket, next) => {
+    let token = socket.handshake.auth.token
+
+    if (!token) {
+        return next(new Error('Authentication Required'))
+    }
+
+    jsonWebToken.verify(token, SHIP.SECRET_KEY, (error, userData) => {
+        if (error) {
+            return next(new Error('Invalid Token'))
+        }
+        if(!userData || !userData.id || !userData.username) {
+            return next(new Error('Invalid User'))
+        }
+
+        socket.user = userData
+        next()
+    })
+})
+
+// API Communications
 async function getTimeFromAPI() {
     try {
-        const response = await fetch(dateTimeAPIurl)
+        const response = await fetch(SHIP.TIME_API)
         if(!response.ok) {
             if(response.status === 404) {
                 throw new Error ('dateTimeAPI Not Found, Setting Default dateTime.')
@@ -38,133 +83,92 @@ async function getTimeFromAPI() {
     }
     return worldDateTime
 } 
-getTimeFromAPI()
 
-
-// Setting Up Server
-const app = express()
-const port = 3030
-const server = http.createServer(app)
-const secretKey = 'supersecret'
-const io = new Server(server, {
-    cors: {
-        origin: "http://localhost:3000",
-        methods: ["GET", "POST"],
-        credentials: true
-    }
-})
-
-const playersInServer = new Map()
-
-// Middleware for CORS
-app.use(cors({
-    origin: "http://localhost:3000",
-    methods: ["GET", "POST"],
-    credentials: true
-}))
-
-io.use((socket, next) => {
-    let token = socket.handshake.auth.token
-
-    if (!token) {
-        return next();                      // Pass response code here.
-    }
-
-    jsonWebToken.verify(token, secretKey, (error, userData) => {
-        if (error) {
-            return next()                   // Pass response code here.
+// Functions for world data.
+const playerMonitor = {
+    emitWorldDateTime: async () => {
+        worldDateTime = await getTimeFromAPI()
+        io.emit('sendWorldTime', worldDateTime)    
+    },
+    addToPlayerMap: (socket) => {
+        playersInServer.set(
+            socket.user.id,
+            {
+                id: socket.user.id,
+                username: socket.user.username,
+                color: '0x00ff00',
+                position: {x: 0, y: 0, z: -10}
+            }
+        )
+    },
+    emitNewPlayer: (socket) => {
+        io.emit('sendPlayerData', playersInServer.get(socket.user.id))
+    },
+    removeFromPlayerMap: (socket) => {
+        playersInServer.delete(socket.user.id)
+    },
+    emitPlayerMap: (socket) => {
+        playersInServer.forEach((values) => {
+            socket.emit('sendPlayerData', values)
+        })
+    },
+    updatePlayerPosition: (socket, point) => {
+        const player = playersInServer.get(socket.user.id)
+        if (player) {
+            player.position = point
+            io.emit('broadcastPlayerPosition', player)
         }
-        socket.user = userData;             // This currently passes userData.id and userData.username
-        next()
-    })
-})
-
-
-
-
-async function emitWorldDateTime() {
-    worldDateTime = await getTimeFromAPI()
-    io.emit('sendWorldTime', worldDateTime)
+    }
 }
-
-// Send connected players map to the new connection.
-function emitPlayerMap(socket) {
-    playersInServer.forEach((values, key) => {
-        socket.emit('sendPlayerData', values)
-    })
-}
-
-// Add the new user to the players maps.
-function addToPlayerMap(socket) {
-    playersInServer.set(socket.user.id, {id: socket.user.id, username: socket.user.username, color: '0x00ff00', position: {x: 0, y: 0, z: -10}})
-}
-
-// Sends the newly connected player data to all connected sockets.
-function emitNewPlayer(socket) {
-    io.emit('sendPlayerData', playersInServer.get(socket.user.id))
-}
-
-// Called on socket disconnect.
-function removeFromPlayerMap(socket) {
-    playersInServer.delete(socket.user.id)
-}
-
 
 // Set up Socket.IO connection
 io.on('connection', (socket) => {
-    socket.emit('welcome', `Welcome to the Socket.IO server ${socket.user.username}!`)
-    
-    console.log(`${socket.user.username} connected`)
+    const username = socket.user.username
+    console.log(`${username} connected`)
 
-    sendWorldData(socket, world)
-    emitPlayerMap(socket)
-    addToPlayerMap(socket)
-    emitNewPlayer(socket)
+    socket.emit('welcome', `Connection established.`)
+    socket.emit('recieveWorldData', world)
     socket.emit('sendWorldTime', worldDateTime)
 
+    playerMonitor.emitPlayerMap(socket)
+    playerMonitor.addToPlayerMap(socket)
+    playerMonitor.emitNewPlayer(socket)
+
     socket.on('disconnect', () => {
-        console.log(`${socket.user.username} disconnected`)
-
-        removeFromPlayerMap(socket)
-
+        console.log(`${username} disconnected`)
+        playerMonitor.removeFromPlayerMap(socket)
         io.emit('userDisconnected', socket.user.id)
     })
 
-    // Server Recieves Message From A Socket
     socket.on('sendGlobalUserMessage', (message) => {
-        message = `[${socket.user.username}]: ${message}`
-        console.log(message)
-        // Server Broadcasts This Message To All Connected Sockets
-        io.emit('recieveGlobalUserMessage', message)
+        io.emit('recieveGlobalUserMessage', message, socket.user.id, socket.user.username)
     })
 
     // Server receive's updated position from socket
     socket.on('updatePlayerPosition', (point) => {
-        playersInServer.get(socket.user.id).position = {x: point.x, y: point.y, z: point.z}
-
-        movementUpdateData = {
-            id: socket.user.id,
-            position: point
-        }
-
-        //Broadcast this change in position to all connected sockets
-        io.emit('broadcastPlayerPosition', movementUpdateData)
+        playerMonitor.updatePlayerPosition(socket, point)
     })
 })
 
-// Server Side Connection Error Messages
+// Handle crashouts
 io.engine.on("connection_error", (error) => {
-    console.log(error.req);      // the request object
-    console.log(error.code);     // the error code, for example 1
-    console.log(error.message);  // the error message, for example "Session ID unknown"
-    console.log(error.context);  // some additional error context
+    console.log(error.req)
+    console.log(error.code)
+    console.log(error.message)
+    console.log(error.context)
 })
 
-// Start the server
-server.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`)
-})
+async function initializeServer() {
+    try { 
+        await getTimeFromAPI()
+        server.listen(SHIP.PORT, () => {
+            console.log(`Server running on http://localhost:${SHIP.PORT}.`)
+        })
+        setInterval(playerMonitor.emitWorldDateTime, 60000)
+    } catch (error) {
+        console.error('Server failed to start.')
+        process.exit(1)
+    }
+}
 
-
-//Call DateTimeAPI every miniute
-setInterval(emitWorldDateTime, 60000)
+initializeServer()
