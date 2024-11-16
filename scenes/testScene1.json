@@ -25,5 +25,16 @@
             "rotation": { "x": 0, "y": 0, "z": 0 },
             "color": "#12ABC1"
         }
+    ],
+    "transitions": [
+        {
+            "id": 1,
+            "type": "box",
+            "geometry": { "width": 2, "height": 2, "depth": 2},
+            "position": { "x": 2, "y": 1, "z": -15 },
+            "rotation": { "x": 0, "y": 0, "z": 0 },
+            "color": "#00aaaa",
+            "onClick": "loadScene2"
+        }
     ]
 }

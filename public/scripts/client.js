@@ -26,6 +26,7 @@ gameWindow.appendChild(renderer.domElement)
 // Mesh Groups Of Level
 const floors = new THREE.Group()
 const objects = new THREE.Group()
+const transitions = new THREE.Group()
 
 // Lighting 
 const ambientLight = new THREE.AmbientLight(0x404040)
@@ -44,23 +45,6 @@ scene.add(directionalLightHelper)
 var playersInScene = {}
 var movementSystem = new Movement(scene, objects, floors, playersInScene)
 
-// Functions for Game Server Communication
-function onMouseClick(event) {
-    mouse.x = ((event.clientX - gameWindow.getBoundingClientRect().left) / gameWindow.clientWidth) * 2 - 1;
-    mouse.y = -((event.clientY - gameWindow.getBoundingClientRect().top) / gameWindow.clientHeight) * 2 + 1;
-    raycaster.setFromCamera(mouse, camera)
-
-    const intersects = raycaster.intersectObjects(floors.children)
-
-    if (intersects.length > 0) {
-        const point = intersects[0].point
-
-        if (point) {
-            socket.emit('updatePlayerPosition', point)
-        }
-    }
-}
-
 const socket = io('http://localhost:3030', {
     auth: { token: token }
 })
@@ -69,12 +53,33 @@ socket.on("connect_error", (err) => {
     console.log(err.message)
     console.log(err.description)
     console.log(err.context)
-});
+})
 
 socket.on('welcome', (message) => {
     console.log(message)
-});
+})
 
+function onMouseClick(event) {
+    mouse.x = ((event.clientX - gameWindow.getBoundingClientRect().left) / gameWindow.clientWidth) * 2 - 1;
+    mouse.y = -((event.clientY - gameWindow.getBoundingClientRect().top) / gameWindow.clientHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera)
+
+    const intersectsTransitions = raycaster.intersectObjects(transitions.children)
+    const intersectsFloors = raycaster.intersectObjects(floors.children)
+
+    if (intersectsTransitions.length > 0) {
+        console.log(intersectsTransitions[0].object.userData.transition)
+        console.log("this needs to get the onclick stored in each transitions object and emit it as an event that corrctly loads this socket into that map")
+        return
+    }
+
+    if (intersectsFloors.length > 0) {
+        const point = intersectsFloors[0].point
+        if (point) {
+            socket.emit('updatePlayerPosition', point)
+        }
+    }
+}
 
 function animate() {
     renderer.setSize(gameWindow.clientWidth, gameWindow.clientHeight)
@@ -82,14 +87,74 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-function instantiatePlayer(id, name, color, position){
+function instantiatePlayer(id, name, color, position) {
     let clientPlayer = new Player(id, name, color, position.x, position.y, position.z)
     playersInScene[id] = clientPlayer
     scene.add(clientPlayer.mesh)
     movementSystem.updateSceneAndPlayers(scene, playersInScene)
 }
 
-// Toolbar Handler
+function chatBubble(player, message) {
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+    canvas.width = 1024
+    canvas.height = 512
+
+    
+    // Draw the chat bubble
+    context.fillStyle = 'white'
+    context.strokeStyle = 'gray'
+    context.lineWidth = 10
+
+    // Calculate center and radii for the ellipse
+    const centerX = canvas.width / 2
+    const centerY = canvas.height / 2
+    const radiusX = canvas.width / 3
+    const radiusY = canvas.height / 3
+
+    context.beginPath()
+    context.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2)
+    context.fill()
+    context.stroke()
+
+    context.font = '100px Arial'
+    context.fillStyle = 'black'
+    context.textAlign = 'center'
+    context.fillText(message, centerX, centerY)
+
+    const texture = new THREE.CanvasTexture(canvas)
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true })
+    const sprite = new THREE.Sprite(material)
+
+    sprite.position.set(0, 2, 0)
+    sprite.scale.set(5, 2.5, 1)
+
+    player.mesh.add(sprite)
+
+    setInterval(() => {
+        player.mesh.remove(sprite)
+        material.dispose()
+        texture.dispose()
+    }, 7000)
+}
+
+function emptyGroup(group) {
+    while(group.children.length > 0) { 
+        const child = group.children[0]
+        if (child.geometry) {
+            child.geometry.dispose()
+        }
+        if (child.material) {
+            if (Array.isArray(child.material)) {
+                child.material.forEach(material => material.dispose())
+            } else {
+                child.material.dispose()
+            }
+        }
+        group.remove(child)
+    }
+}
+
 const toolbarInputs = {
     '1': () => {
         console.log('Camera Angle 1 - Game Angle');
@@ -153,8 +218,12 @@ document.addEventListener('DOMContentLoaded', () => {
     })
 
     socket.on('recieveWorldData', (world) => {
+        emptyGroup(floors)
+        emptyGroup(objects)
+        emptyGroup(transitions)
         let floorData = world.floors
         let objectData = world.objects
+        let transitionsData = world.transitions
 
         floorData.forEach(floor => {
             let Geometry = new THREE.PlaneGeometry(floor.geometry.width, floor.geometry.height)
@@ -176,8 +245,21 @@ document.addEventListener('DOMContentLoaded', () => {
             objects.add(Mesh)
         })
 
+        transitionsData.forEach(transition => {
+            if (transition.type === "box") {
+                var Geometry = new THREE.BoxGeometry(transition.geometry.width, transition.geometry.height, transition.geometry.depth)
+            }
+            let Material = new THREE.MeshStandardMaterial({ color: transition.color })
+            let Mesh = new THREE.Mesh(Geometry, Material)
+            Mesh.position.set(transition.position.x, transition.position.y, transition.position.z)
+            Mesh.rotation.set(transition.rotation.x, transition.rotation.y, transition.rotation.z)
+            Mesh.userData.transition = transition.onClick
+            transitions.add(Mesh)
+        })
+
         scene.add(floors)
         scene.add(objects)
+        scene.add(transitions)
     })
 
     socket.on('sendWorldTime', (date) => {
@@ -225,50 +307,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn(`Player with ID ${id} not found.`)
             return
         }
-    
-        // Create chat bubble canvas
-        const canvas = document.createElement('canvas')
-        const context = canvas.getContext('2d')
-        canvas.width = 1024
-        canvas.height = 512
-
-        
-        // Draw the chat bubble
-        context.fillStyle = 'white'
-        context.strokeStyle = 'gray'
-        context.lineWidth = 10
-
-        // Calculate center and radii for the ellipse
-        const centerX = canvas.width / 2
-        const centerY = canvas.height / 2
-        const radiusX = canvas.width / 3
-        const radiusY = canvas.height / 3
-
-        context.beginPath()
-        context.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2)
-        context.fill()
-        context.stroke()
-
-        context.font = '100px Arial'
-        context.fillStyle = 'black'
-        context.textAlign = 'center'
-        context.fillText(message, centerX, centerY)
-
-        const texture = new THREE.CanvasTexture(canvas)
-        const material = new THREE.SpriteMaterial({ map: texture, transparent: true })
-        const sprite = new THREE.Sprite(material)
-
-        sprite.position.set(0, 2, 0)
-        sprite.scale.set(5, 2.5, 1)
-
-        player.mesh.add(sprite)
-
-        setInterval(() => {
-            player.mesh.remove(sprite)
-            material.dispose()
-            texture.dispose()
-        }, 7000)
-    });
+        chatBubble(player, message)
+    })
     
 
     //Update other player's position on screen
