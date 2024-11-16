@@ -2,14 +2,17 @@ import priorityQueue from './priorityQueue.js'
 
 import Movement from './Movement.js'
 
+const token = localStorage.getItem('token')
+if (!token) {
+    window.location.href = '/login'
+}
+
 // Three.js Neccesities For Creating Game Worlds
 const scene = new THREE.Scene()
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
 const renderer = new THREE.WebGLRenderer()
 const raycaster = new THREE.Raycaster()
 const mouse = new THREE.Vector2()
-
-// Initial Camera Position
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
 camera.position.x = 0
 camera.position.y = 15
 camera.position.z = 15
@@ -19,22 +22,16 @@ camera.rotation.x = -0.6
 const gameWindow = document.getElementById('gameWindow')
 renderer.setSize(gameWindow.clientWidth, gameWindow.clientHeight)
 gameWindow.appendChild(renderer.domElement)
-const floor1Geometry = new THREE.PlaneGeometry(20, 10)
-const floor1Material = new THREE.MeshStandardMaterial({ color: 0xaaaaaa })
-const floor1Mesh = new THREE.Mesh(floor1Geometry, floor1Material)
-floor1Mesh.position.set(0, 0, -10)
-floor1Mesh.rotation.set(-Math.PI/2, 0, 0)
 
-// Three.js Mesh Array For Worlds Floorplan
+// Mesh Groups Of Level
 const floors = new THREE.Group()
 const objects = new THREE.Group()
 
-
-// Three.js Lighting System
-const ambientLight = new THREE.AmbientLight(0x404040);
+// Lighting 
+const ambientLight = new THREE.AmbientLight(0x404040)
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
 directionalLight.position.set(1, 10, -10)
-const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 5);
+const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 5)
 
 renderer.shadowMap.enabled = true
 directionalLight.castShadow = true
@@ -43,26 +40,20 @@ scene.add(ambientLight)
 scene.add(directionalLight)
 scene.add(directionalLightHelper)
 
-//User attributes
-let userId;
-let userName;
-
 // Player dictionary
 var playersInScene = {}
-
 var movementSystem = new Movement(scene, objects, floors, playersInScene)
 
 // Functions for Game Server Communication
-// Function That Casts A Ray To Intersect With The Closest Object At That Point From The Camera
 function onMouseClick(event) {
     mouse.x = ((event.clientX - gameWindow.getBoundingClientRect().left) / gameWindow.clientWidth) * 2 - 1;
     mouse.y = -((event.clientY - gameWindow.getBoundingClientRect().top) / gameWindow.clientHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera)
 
-    const intersects = raycaster.intersectObjects(floors.children)          // Checks The Global Meshes Object To See If It Intersects With Any Meshes In The Scene
+    const intersects = raycaster.intersectObjects(floors.children)
 
     if (intersects.length > 0) {
-        const point = intersects[0].point           // Grabs the first point of intersection.
+        const point = intersects[0].point
 
         if (point) {
             socket.emit('updatePlayerPosition', point)
@@ -70,31 +61,21 @@ function onMouseClick(event) {
     }
 }
 
-// Pass the token when connecting to the game server
-const token = localStorage.getItem('token')
-if (!token) {
-    window.location.href = '/login'
-}
 const socket = io('http://localhost:3030', {
-    auth: {
-        token: token
-    }
-});
+    auth: { token: token }
+})
 
-// Client Side Connection Error Messages
 socket.on("connect_error", (err) => {
     console.log(err.message)
     console.log(err.description)
     console.log(err.context)
 });
 
-// Client Recieving Welcome Message
 socket.on('welcome', (message) => {
     console.log(message)
 });
 
-// Function That Requests The Next Animation Frame Recursivley And Renders It
-// Renderer Size Is Based On The Size Of The gameWindow Div
+
 function animate() {
     renderer.setSize(gameWindow.clientWidth, gameWindow.clientHeight)
     requestAnimationFrame(animate);
@@ -158,20 +139,18 @@ const toolbarInputs = {
         console.log('Increasing Sunlight Intensity')
         directionalLight.intensity += 0.1
     }
-};
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     gameWindow.addEventListener('click', onMouseClick)
 
     // Toolbar Listener
     document.addEventListener('keydown', (event) => {
-        const key = event.key;
-        
-        // Check if the pressed key has a corresponding action
+        const key = event.key
         if (toolbarInputs[key]) {
-            toolbarInputs[key]();
+            toolbarInputs[key]()
         } 
-    });
+    })
 
     socket.on('recieveWorldData', (world) => {
         let floorData = world.floors
@@ -216,7 +195,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             directionalLight.intensity = currentHour/12
         }
-        console.log(currentHour)
     })
 
     socket.on('sendPlayerData', (player) => {
@@ -226,10 +204,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Client-Side Message Sent To Game Server
     let sendMessageButton = document.getElementById('sendUserMessage')
     sendMessageButton.addEventListener('click', async () => {  
-        userInput = document.getElementById('userMessage')
-        userMessage = String(userInput.value)
-        userInput.value = ''
+        let userInput = document.getElementById('userMessage')
+        let userMessage = String(userInput.value)
         if(userMessage) {
+            userInput.value = ''
             socket.emit('sendGlobalUserMessage', userMessage);
         } else {
             console.log('Message could not be sent!')
@@ -238,9 +216,60 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Client-Side Message Recieved From The Game Server
     let chatlog = document.getElementById('messagesLog')
-    socket.on('recieveGlobalUserMessage', (message) => {
-        chatlog.value += message + '\n'
-    })
+    socket.on('recieveGlobalUserMessage', (message, id, username) => {
+        let textArea = `[${username}]: ${message}`
+        chatlog.value += textArea + '\n'
+    
+        const player = playersInScene[id]
+        if (!player) {
+            console.warn(`Player with ID ${id} not found.`)
+            return
+        }
+    
+        // Create chat bubble canvas
+        const canvas = document.createElement('canvas')
+        const context = canvas.getContext('2d')
+        canvas.width = 1024
+        canvas.height = 512
+
+        
+        // Draw the chat bubble
+        context.fillStyle = 'white'
+        context.strokeStyle = 'gray'
+        context.lineWidth = 10
+
+        // Calculate center and radii for the ellipse
+        const centerX = canvas.width / 2
+        const centerY = canvas.height / 2
+        const radiusX = canvas.width / 3
+        const radiusY = canvas.height / 3
+
+        context.beginPath()
+        context.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2)
+        context.fill()
+        context.stroke()
+
+        context.font = '100px Arial'
+        context.fillStyle = 'black'
+        context.textAlign = 'center'
+        context.fillText(message, centerX, centerY)
+
+        const texture = new THREE.CanvasTexture(canvas)
+        const material = new THREE.SpriteMaterial({ map: texture, transparent: true })
+        const sprite = new THREE.Sprite(material)
+
+        sprite.position.set(0, 2, 0)
+        sprite.scale.set(5, 2.5, 1)
+
+        player.mesh.add(sprite)
+
+        setInterval(() => {
+            player.mesh.remove(sprite)
+            material.dispose()
+            texture.dispose()
+        }, 7000)
+    });
+    
 
     //Update other player's position on screen
     socket.on('broadcastPlayerPosition', (movementData) => {

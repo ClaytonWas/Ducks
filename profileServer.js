@@ -18,7 +18,7 @@ const ejs = require('ejs')
 
 const app = express()
 const port = 3000                       // Port for profile server.
-const secretKey = 'supersecret'         // Secret key for signing session token.
+const secretKey = 'runescapefan'         // Secret key for signing session token.
 
 
 
