@@ -100,10 +100,11 @@ app.post('/login', (req, res) => {
 
 // POST route for registering new users
 app.post('/register', (req, res) => {
-    const {username, password} = req.body;
+    const {username, password, shape, color} = req.body;
+    console.log(shape, color)
 
-    if (!username || !password) {
-        return res.status(400).json({message: 'Username and password are required to create an account.'})
+    if (!username || !password || !shape || !color) {
+        return res.status(400).json({message: 'All fields are required to create an account.'})
     }
 
     bcrypt.genSalt(10, (error, salt) => {
@@ -114,7 +115,7 @@ app.post('/register', (req, res) => {
                     return res.status(500).json({message: 'The server encountered an error reading the database.'})
                 }
                 if (!row) {
-                    db.run('INSERT INTO accounts (username, password, salt, hash) VALUES (?, ?, ?, ?)', [username, password, salt, hash], (error) => {
+                    db.run('INSERT INTO accounts (username, password, salt, hash, shape, color) VALUES (?, ?, ?, ?, ?, ?)', [username, password, salt, hash, shape, color], (error) => {
                         if (error) {
                             console.error(error.name, error.message)
                             return res.status(500).json({message: 'The server encountered an error registering account details into the database.'})
