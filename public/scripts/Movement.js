@@ -339,6 +339,10 @@ export default class Movement {
                 const incZ = startZ + deltaZ * progress;
     
                 player.mesh.position.set(incX, incY, incZ);
+
+                player.x = incX
+                player.y = incY
+                player.z = incZ
     
                 if (progress < 1) {
                     requestAnimationFrame(animate);
@@ -396,6 +400,10 @@ export default class Movement {
                     const incX = startX + deltaX * progress;
                     const incY = startY + deltaY * progress;
                     const incZ = startZ + deltaZ * progress;
+
+                    player.x = incX
+                    player.y = incY
+                    player.z = incZ
     
                     player.mesh.position.set(incX, incY, incZ);
     
