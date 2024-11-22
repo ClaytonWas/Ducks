@@ -47,4 +47,18 @@ To get started with this project, you'll need to install the necessary dependenc
 
 
 # TODO:
-Scene transitions.
+Scene transitions
+
+Player customization (shape colour)
+
+Typeracer
+
+Tic-Tac-Toe
+
+Movement cancellation updates current position to server
+
+Systems Testing
+
+UML diagrams
+
+Dockerization
