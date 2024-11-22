@@ -87,8 +87,9 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-function instantiatePlayer(id, name, color, position) {
-    let clientPlayer = new Player(id, name, color, position.x, position.y, position.z)
+function instantiatePlayer(id, name, shape, color, position) {
+    console.log(shape)
+    let clientPlayer = new Player(id, name, shape, color, position.x, position.y, position.z)
     playersInScene[id] = clientPlayer
     scene.add(clientPlayer.mesh)
     movementSystem.updateSceneAndPlayers(scene, playersInScene)
@@ -280,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     })
 
     socket.on('sendPlayerData', (player) => {
-        instantiatePlayer(player.id, player.username, player.color, player.position)
+        instantiatePlayer(player.id, player.username, player.shape, player.color, player.position)
     })
 
     // Client-Side Message Sent To Game Server

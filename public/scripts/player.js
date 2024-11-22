@@ -1,13 +1,19 @@
 class Player {
-    constructor(id, name, color = 0x00ff00, x = 0, y = 0, z = 0) {
+  constructor(id, name, shape = 'cube', color = THREE.Color(0x00ff00), x = 0, y = 0, z = 0) {
       this.id = id; // Unique user id
       this.name = name; // username
-      this.color = color; // temporarily using coloured capsules as models
+      this.color = new THREE.Color(color); // temporarily using coloured capsules as models
       this.x = x; // current scene x position
       this.y = y; // current scene y position
       this.z = z;
 
-      this.geometry = new THREE.BoxGeometry(1, 1, 1);
+      if (shape === 'cube') {
+        this.geometry = new THREE.BoxGeometry(1, 1, 1);
+      } else if (shape === 'sphere') {
+        this.geometry = new THREE.SphereGeometry(1, 8, 16);
+      } else if (shape === 'cone') {
+        this.geometry = new THREE.ConeGeometry(1, 1, 10);
+      } 
       this.material = new THREE.MeshBasicMaterial( { color: color } );
       this.mesh = new THREE.Mesh(this.geometry, this.material);
       this.mesh.position.set(this.x, this.y, this.z) 
@@ -20,4 +26,4 @@ class Player {
       this.mesh.position.y += 0.7;
     }
       
-  }
+}

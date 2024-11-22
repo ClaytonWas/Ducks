@@ -82,7 +82,7 @@ app.post('/login', (req, res) => {
                     */
                     req.session.user = row
                     token = jsonWebToken.sign(
-                        {id: req.session.user.id, username: req.session.user.username},
+                        {id: req.session.user.id, username: req.session.user.username, shape: req.session.user.shape, color: req.session.user.color},
                         secretKey,
                         {expiresIn: '3h'}
                     )
@@ -101,7 +101,6 @@ app.post('/login', (req, res) => {
 // POST route for registering new users
 app.post('/register', (req, res) => {
     const {username, password, shape, color} = req.body;
-    console.log(shape, color)
 
     if (!username || !password || !shape || !color) {
         return res.status(400).json({message: 'All fields are required to create an account.'})
@@ -120,6 +119,7 @@ app.post('/register', (req, res) => {
                             console.error(error.name, error.message)
                             return res.status(500).json({message: 'The server encountered an error registering account details into the database.'})
                         }
+                        console.log(`Player Created: ${username}, ${shape}, ${color}`)
                         return res.status(201).json({message: 'Account Successfully Created.'})
                     })
                 } else {
