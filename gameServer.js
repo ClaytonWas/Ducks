@@ -16,7 +16,7 @@ const SHIP = {
 }
 
 // Globals
-const world = require('./scenes/testScene1.json')
+const world = require('./scenes/testScene3.json')
 const playersInServer = new Map()
 
 // Default Time
