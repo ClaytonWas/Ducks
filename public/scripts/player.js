@@ -10,13 +10,13 @@ class Player {
       if (shape === 'cube') {
         this.geometry = new THREE.BoxGeometry(1, 1, 1);
       } else if (shape === 'sphere') {
-        this.geometry = new THREE.SphereGeometry(1, 8, 16);
+        this.geometry = new THREE.SphereGeometry(1, 16, 16);
       } else if (shape === 'cone') {
-        this.geometry = new THREE.ConeGeometry(1, 1, 10);
+        this.geometry = new THREE.ConeGeometry(1, 2, 14);
       } 
       this.material = new THREE.MeshBasicMaterial( { color: color } );
       this.mesh = new THREE.Mesh(this.geometry, this.material);
-      this.mesh.position.set(this.x, this.y, this.z) 
+      this.mesh.position.set(this.x, this.y + 0.5, this.z) 
     }
 
     // Method to move the player
