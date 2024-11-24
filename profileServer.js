@@ -82,7 +82,7 @@ app.post('/login', (req, res) => {
                     */
                     req.session.user = row
                     token = jsonWebToken.sign(
-                        {id: req.session.user.id, username: req.session.user.username},
+                        {id: req.session.user.id, username: req.session.user.username, shape: req.session.user.shape, color: req.session.user.color},
                         secretKey,
                         {expiresIn: '3h'}
                     )
@@ -100,10 +100,10 @@ app.post('/login', (req, res) => {
 
 // POST route for registering new users
 app.post('/register', (req, res) => {
-    const {username, password} = req.body;
+    const {username, password, shape, color} = req.body;
 
-    if (!username || !password) {
-        return res.status(400).json({message: 'Username and password are required to create an account.'})
+    if (!username || !password || !shape || !color) {
+        return res.status(400).json({message: 'All fields are required to create an account.'})
     }
 
     bcrypt.genSalt(10, (error, salt) => {
@@ -114,11 +114,12 @@ app.post('/register', (req, res) => {
                     return res.status(500).json({message: 'The server encountered an error reading the database.'})
                 }
                 if (!row) {
-                    db.run('INSERT INTO accounts (username, password, salt, hash) VALUES (?, ?, ?, ?)', [username, password, salt, hash], (error) => {
+                    db.run('INSERT INTO accounts (username, password, salt, hash, shape, color) VALUES (?, ?, ?, ?, ?, ?)', [username, password, salt, hash, shape, color], (error) => {
                         if (error) {
                             console.error(error.name, error.message)
                             return res.status(500).json({message: 'The server encountered an error registering account details into the database.'})
                         }
+                        console.log(`Player Created: ${username}, ${shape}, ${color}`)
                         return res.status(201).json({message: 'Account Successfully Created.'})
                     })
                 } else {

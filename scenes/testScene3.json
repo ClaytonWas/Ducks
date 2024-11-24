@@ -1,0 +1,54 @@
+{
+    "floors": [
+        {
+            "id": 1,
+            "geometry": { "width": 30, "height": 20},
+            "position": { "x": 0, "y": 0, "z": -10 },
+            "rotation": { "x": -1.5707963267948966, "y": 0, "z": 0 },
+            "color": "#aaaaaa"
+        },
+        {
+            "id": 2,
+            "geometry": { "width": 10, "height": 10},
+            "position": { "x": 25, "y": 5, "z": -10 },
+            "rotation": { "x": -1.5707963267948966, "y": 0, "z": 0 },
+            "color": "#aabbaa"
+        },
+        {
+            "id": 3,
+            "geometry": { "width": 7.1803398875, "height": 10},
+            "position": { "x": 17.5, "y": 2.5, "z": -10 },
+            "rotation": { "x": -1.5707963267948966, "y": -0.78539816339, "z": 0 },
+            "color": "#aabbaa"
+        }
+    ],
+    "objects": [
+        {
+            "id": 1,
+            "type": "box",
+            "geometry": { "width": 2, "height": 1, "depth": 2},
+            "position": { "x": 5, "y": 0.5, "z": -10 },
+            "rotation": { "x": 0, "y": 0, "z": 0 },
+            "color": "#001200"
+        },
+        {
+            "id": 2,
+            "type": "box",
+            "geometry": { "width": 1, "height": 2, "depth": 1},
+            "position": { "x": -7, "y": 1, "z": -10 },
+            "rotation": { "x": 0, "y": 0, "z": 0 },
+            "color": "#1211C1"
+        }
+    ],
+    "transitions": [
+        {
+            "id": 1,
+            "type": "box",
+            "geometry": { "width": 2, "height": 2, "depth": 2},
+            "position": { "x": 2, "y": 1, "z": -15 },
+            "rotation": { "x": 0, "y": 0, "z": 0 },
+            "color": "#00aaaa",
+            "onClick": "loadScene2"
+        }
+    ]
+}

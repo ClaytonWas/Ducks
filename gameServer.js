@@ -16,7 +16,7 @@ const SHIP = {
 }
 
 // Globals
-const world = require('./scenes/testScene2.json')
+const world = require('./scenes/testScene3.json')
 const playersInServer = new Map()
 
 // Default Time
@@ -96,7 +96,8 @@ const playerMonitor = {
             {
                 id: socket.user.id,
                 username: socket.user.username,
-                color: '0x00ff00',
+                shape: socket.user.shape,
+                color: socket.user.color,
                 position: {x: 0, y: 0, z: -10}
             }
         )
