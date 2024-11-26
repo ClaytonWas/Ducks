@@ -1,6 +1,8 @@
-import priorityQueue from './priorityQueue.js'
-
 import Movement from './Movement.js'
+
+import TicTacToe from './ticTacToe.js'
+
+window.TicTacToe = TicTacToe;
 
 const token = localStorage.getItem('token')
 if (!token) {
@@ -58,6 +60,76 @@ socket.on("connect_error", (err) => {
 socket.on('welcome', (message) => {
     console.log(message)
 })
+
+function joinTTTBoard (boardId) {
+    socket.emit('joinBoard', boardId)
+
+    socket.on('joinBoardResponse', (response) => {
+
+        if (response.isSpace) {
+            TicTacToe.hideBoards()
+            TTTGameLoop(response.marker)
+        }
+    })
+}
+
+window.joinTTTBoard = joinTTTBoard;
+
+function leaveTTTBoard () {
+    socket.emit('leaveBoard')
+
+    TicTacToe.leaveBoard()
+}
+
+window.leaveTTTBoard = leaveTTTBoard;
+
+function TTTGameLoop(marker) {
+
+    let tttGame = new TicTacToe(socket)
+
+    tttGame.setMarker(marker)
+    tttGame.generateBoard()
+    TicTacToe.showBoard()
+    tttGame.disableCellClicks()
+
+    tttGame.setGameInfoMessage('Waiting for opponent')
+
+    console.log('Socket marker is ', tttGame.marker)
+
+    socket.on('startGame', (opponentName) => {
+
+        tttGame.setOpponentName(opponentName)
+
+        if (marker == 'X') {
+            tttGame.turn = true
+            tttGame.enableCellClicks()
+            tttGame.setGameInfoMessage('Game is active: Your turn')
+        } else {
+            tttGame.setGameInfoMessage(`Game is active: ${tttGame.opponentName}'s turn`)
+        }
+    })
+
+    socket.on('opponentMove', (moveData) => {
+        tttGame.oppentCheckCell(moveData)
+    })
+
+    socket.on('opponentLeft', (leaveMessage) => {
+        tttGame.disableCellClicks()
+        tttGame.setGameInfoMessage(leaveMessage)
+    })
+
+    socket.on('endGame', (endGameData) => {
+        
+        if (endGameData.tieGame) {
+            tttGame.setGameInfoMessage(endGameData.message)
+        } else {
+            tttGame.highlight(endGameData.winCombo, endGameData.comboColor)
+            tttGame.setGameInfoMessage(endGameData.message)
+            tttGame.disableCellClicks()
+        }
+    })
+    
+}
 
 function onMouseClick(event) {
     mouse.x = ((event.clientX - gameWindow.getBoundingClientRect().left) / gameWindow.clientWidth) * 2 - 1;
@@ -195,6 +267,9 @@ const toolbarInputs = {
         camera.rotation.x = 0
         camera.rotation.y = 0
         camera.rotation.z = 0
+    },
+    '5': () => {
+        TicTacToe.showBoards()
     },
     '-': () => {
         console.log('Decreasing Sunlight Intensity')
