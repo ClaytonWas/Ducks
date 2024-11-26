@@ -127,6 +127,7 @@ const serverTTT = {
                 endMessage = `${socket.user.username} has won`
                 console.log('A winning position has been reached on ', boardId, ' with combo ', endData.winCombo)
             } else if (endData.message == 'tieGame') {
+                console.log('Game has reached a tied position')
                 endMessage = 'Tie Game'
             }
 
@@ -139,7 +140,7 @@ const serverTTT = {
                         playerSocket.emit('endGame', {tieGame: false, message: endMessage, winCombo: endData.winCombo, comboColor: 'red'})
                     }
                 } else {
-                    playerSocket.emit('endGame', {tieGame: true, message: returnEndMessage})
+                    playerSocket.emit('endGame', {tieGame: true, message: endMessage})
                 }
 
             })
@@ -185,7 +186,7 @@ const serverTTT = {
         }
     },
 
-    leaveBoard: (socket) => {
+    leaveBoard: (socket, inGame) => {
         const boardId = playerToBoard.get(socket)
 
         if (boardId) {
@@ -198,12 +199,14 @@ const serverTTT = {
 
             console.log(`${socket.user.username} left board ${boardId}`)
 
-            board.forEach(playerSocket => {
-                if (playerSocket != socket) {
-                    leaveMessage = `${socket.user.username} forfeited. You win!`
-                    playerSocket.emit('opponentLeft', leaveMessage)
-                }
-            })
+            if (inGame) {
+                board.forEach(playerSocket => {
+                    if (playerSocket != socket) {
+                        leaveMessage = `${socket.user.username} forfeited. You win!`
+                        playerSocket.emit('opponentLeft', leaveMessage)
+                    }
+                })
+            }
         } 
 
     },
@@ -297,8 +300,8 @@ io.on('connection', (socket) => {
         serverTTT.joinBoard(socket, boardId)
     })
 
-    socket.on('leaveBoard', () => {
-        serverTTT.leaveBoard(socket)
+    socket.on('leaveBoard', (inGame) => {
+        serverTTT.leaveBoard(socket, inGame)
     })
 
     socket.on('playerCheckCell', (moveData) => {

@@ -121,9 +121,20 @@ export default class TicTacToe {
         if (winCombo) {
             console.log('Winning combo is ', winCombo)
             this.socket.emit('endGame', {message: 'socketWon', winCombo: winCombo})
-        } else if (this.state.every((cell) =>cell)) {
-            this.socket.emit('endGame', {message: 'tieGame'})
+        } else {
+            let fillCount = 0
+
+            this.state.forEach(cell => {
+                if (cell != null) {
+                    fillCount++
+                }
+            })
+
+            if (fillCount == 9) {
+                this.socket.emit('endGame', {message: 'tieGame'})
+            }
         }
+        
     }
 
     highlight(winCombo, comboColor) {

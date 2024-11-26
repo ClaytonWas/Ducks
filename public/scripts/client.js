@@ -4,6 +4,8 @@ import TicTacToe from './ticTacToe.js'
 
 window.TicTacToe = TicTacToe;
 
+var inTTTGame = false
+
 const token = localStorage.getItem('token')
 if (!token) {
     window.location.href = '/login'
@@ -76,7 +78,7 @@ function joinTTTBoard (boardId) {
 window.joinTTTBoard = joinTTTBoard;
 
 function leaveTTTBoard () {
-    socket.emit('leaveBoard')
+    socket.emit('leaveBoard', inTTTGame)
 
     TicTacToe.leaveBoard()
 }
@@ -97,6 +99,8 @@ function TTTGameLoop(marker) {
     console.log('Socket marker is ', tttGame.marker)
 
     socket.on('startGame', (opponentName) => {
+
+        inTTTGame = true
 
         tttGame.setOpponentName(opponentName)
 
@@ -119,6 +123,8 @@ function TTTGameLoop(marker) {
     })
 
     socket.on('endGame', (endGameData) => {
+
+        inTTTGame = false
         
         if (endGameData.tieGame) {
             tttGame.setGameInfoMessage(endGameData.message)
