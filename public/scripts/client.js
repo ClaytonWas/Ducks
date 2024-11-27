@@ -273,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 textureLoader.load(
                     `${host}/textures/${floor.material}`, 
                     (texture) => {
-                        Material = new THREE.MeshBasicMaterial({ map: texture })
+                        Material = new THREE.MeshStandardMaterial({ map: texture })
                         console.log(`${floor.material} loaded.`)
                         let Mesh = new THREE.Mesh(Geometry, Material)
                         Mesh.position.set(floor.position.x, floor.position.y, floor.position.z)
