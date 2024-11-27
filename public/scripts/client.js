@@ -45,7 +45,9 @@ scene.add(directionalLightHelper)
 var playersInScene = {}
 var movementSystem = new Movement(scene, objects, floors, playersInScene)
 
-const socket = io('http://localhost:3030', {
+const host = 'http://localhost:3030'
+
+const socket = io(host, {
     auth: { token: token }
 })
 
@@ -204,6 +206,42 @@ const toolbarInputs = {
     '=': () => {
         console.log('Increasing Sunlight Intensity')
         directionalLight.intensity += 0.1
+    },
+    'w': () => {
+        console.log('Moving Camera')
+        camera.position.z -= 0.5
+    },
+    's': () => {
+        console.log('Moving Camera')
+        camera.position.z += 0.5
+    },
+    'a': () => {
+        console.log('Moving Camera')
+        camera.position.x -= 0.5
+    },
+    'd': () => {
+        console.log('Moving Camera')
+        camera.position.x += 0.5
+    },
+    'q': () => {
+        console.log('Moving Camera')
+        camera.position.y -= 0.5
+    },
+    'e': () => {
+        console.log('Moving Camera')
+        camera.position.y += 0.5
+    },
+    'z': () => {
+        console.log('Rotating Camera')
+        camera.rotation.x += Math.PI/6
+    },
+    'x': () => {
+        console.log('Rotating Camera')
+        camera.rotation.y += Math.PI/6
+    },
+    'c': () => {
+        console.log('Rotating Camera')
+        camera.rotation.z += Math.PI/6
     }
 }
 
@@ -222,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
         emptyGroup(floors)
         emptyGroup(objects)
         emptyGroup(transitions)
+        let textureLoader = new THREE.TextureLoader()
         let floorData = world.floors
         let objectData = world.objects
         let transitionsData = world.transitions
@@ -229,10 +268,29 @@ document.addEventListener('DOMContentLoaded', () => {
         floorData.forEach(floor => {
             let Geometry = new THREE.PlaneGeometry(floor.geometry.width, floor.geometry.height)
             let Material = new THREE.MeshStandardMaterial({ color: floor.color })
-            let Mesh = new THREE.Mesh(Geometry, Material)
-            Mesh.position.set(floor.position.x, floor.position.y, floor.position.z)
-            Mesh.rotation.set(floor.rotation.x, floor.rotation.y, floor.rotation.z)
-            floors.add(Mesh)
+            
+            if (floor.material) {
+                textureLoader.load(
+                    `${host}/textures/${floor.material}`, 
+                    (texture) => {
+                        Material = new THREE.MeshBasicMaterial({ map: texture })
+                        console.log(`${floor.material} loaded.`)
+                        let Mesh = new THREE.Mesh(Geometry, Material)
+                        Mesh.position.set(floor.position.x, floor.position.y, floor.position.z)
+                        Mesh.rotation.set(floor.rotation.x, floor.rotation.y, floor.rotation.z)
+                        floors.add(Mesh)
+                    },
+                    (error) => { 
+                        console.log(`Could not find ${floor.material} in texture set.`) 
+                    }
+                )
+            } else {
+                // If no material is provided, use the default material
+                let Mesh = new THREE.Mesh(Geometry, Material)
+                Mesh.position.set(floor.position.x, floor.position.y, floor.position.z)
+                Mesh.rotation.set(floor.rotation.x, floor.rotation.y, floor.rotation.z)
+                floors.add(Mesh)
+            }
         })
 
         objectData.forEach(object => {

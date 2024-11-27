@@ -5,6 +5,8 @@ const cors = require('cors')
 const jsonWebToken = require('jsonwebtoken')
 const { posix } = require('path')
 const { emit, resourceUsage, config } = require('process')
+const path = require('path')
+const fs = require('fs')
 
 // Config
 const SHIP = {
@@ -16,7 +18,7 @@ const SHIP = {
 }
 
 // Globals
-const world = require('./scenes/testScene3.json')
+const world = require('./scenes/gameroomScene.json')
 const playersInServer = new Map()
 
 // Default Time
@@ -39,6 +41,22 @@ app.use(cors({
     methods: ["GET", "POST"],
     credentials: true
 }))
+app.use(express.static(path.join(__dirname, 'public')))
+
+// Loading textures to port 3030
+app.get('/textures', (req, res) => {
+    const texturesPath = path.join(__dirname, 'public', 'textures')
+
+    fs.readdir(texturesPath, (error, files) => {
+        if (error) {
+            console.error('Error reading textures directory:', error)
+            return res.status(500).json({ error: 'Unable to load textures.' })
+        }
+
+        const textures = files.filter(file => /\.(png|jpg|jpeg|gif)$/i.test(file));
+        res.json(textures)
+    })
+})
 
 // Authenticating Users
 io.use((socket, next) => {
