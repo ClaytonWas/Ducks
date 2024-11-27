@@ -285,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 )
             } else {
-                // If no material is provided, use the default material
+                // If no material is provided, use the default colour
                 let Mesh = new THREE.Mesh(Geometry, Material)
                 Mesh.position.set(floor.position.x, floor.position.y, floor.position.z)
                 Mesh.rotation.set(floor.rotation.x, floor.rotation.y, floor.rotation.z)
@@ -309,11 +309,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 var Geometry = new THREE.BoxGeometry(transition.geometry.width, transition.geometry.height, transition.geometry.depth)
             }
             let Material = new THREE.MeshStandardMaterial({ color: transition.color })
-            let Mesh = new THREE.Mesh(Geometry, Material)
-            Mesh.position.set(transition.position.x, transition.position.y, transition.position.z)
-            Mesh.rotation.set(transition.rotation.x, transition.rotation.y, transition.rotation.z)
-            Mesh.userData.transition = transition.onClick
-            transitions.add(Mesh)
+
+            if (transition.material) {
+                textureLoader.load(
+                    `${host}/textures/${transition.material}`, 
+                    (texture) => {
+                        Material = new THREE.MeshStandardMaterial({ map: texture })
+                        console.log(`${transition.material} loaded.`)
+                        let Mesh = new THREE.Mesh(Geometry, Material)
+                        Mesh.position.set(transition.position.x, transition.position.y, transition.position.z)
+                        Mesh.rotation.set(transition.rotation.x, transition.rotation.y, transition.rotation.z)
+                        Mesh.userData.transition = transition.onClick            
+                        transitions.add(Mesh)
+                    },
+                    (error) => { 
+                        console.log(`Could not find ${transition.material} in texture set.`) 
+                    }
+                )
+            } else {
+                // If no material is provided, use the default colour
+                let Mesh = new THREE.Mesh(Geometry, Material)
+                Mesh.position.set(transition.position.x, transition.position.y, transition.position.z)
+                Mesh.rotation.set(transition.rotation.x, transition.rotation.y, transition.rotation.z)
+                Mesh.userData.transition = transition.onClick            
+                transitions.add(Mesh)
+            }
         })
 
         scene.add(floors)
