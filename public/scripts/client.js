@@ -53,7 +53,9 @@ scene.add(directionalLightHelper)
 var playersInScene = {}
 var movementSystem = new Movement(scene, objects, floors, playersInScene)
 
-const socket = io('http://localhost:3030', {
+const host = 'http://localhost:3030'
+
+const socket = io(host, {
     auth: { token: token }
 })
 
@@ -195,8 +197,9 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-function instantiatePlayer(id, name, color, position) {
-    let clientPlayer = new Player(id, name, color, position.x, position.y, position.z)
+function instantiatePlayer(id, name, shape, color, position) {
+    console.log(shape)
+    let clientPlayer = new Player(id, name, shape, color, position.x, position.y, position.z)
     playersInScene[id] = clientPlayer
     scene.add(clientPlayer.mesh)
     movementSystem.updateSceneAndPlayers(scene, playersInScene)
@@ -317,6 +320,42 @@ const toolbarInputs = {
     '=': () => {
         console.log('Increasing Sunlight Intensity')
         directionalLight.intensity += 0.1
+    },
+    'w': () => {
+        console.log('Moving Camera')
+        camera.position.z -= 0.5
+    },
+    's': () => {
+        console.log('Moving Camera')
+        camera.position.z += 0.5
+    },
+    'a': () => {
+        console.log('Moving Camera')
+        camera.position.x -= 0.5
+    },
+    'd': () => {
+        console.log('Moving Camera')
+        camera.position.x += 0.5
+    },
+    'q': () => {
+        console.log('Moving Camera')
+        camera.position.y -= 0.5
+    },
+    'e': () => {
+        console.log('Moving Camera')
+        camera.position.y += 0.5
+    },
+    'z': () => {
+        console.log('Rotating Camera')
+        camera.rotation.x += Math.PI/6
+    },
+    'x': () => {
+        console.log('Rotating Camera')
+        camera.rotation.y += Math.PI/6
+    },
+    'c': () => {
+        console.log('Rotating Camera')
+        camera.rotation.z += Math.PI/6
     }
 }
 
@@ -335,6 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
         emptyGroup(floors)
         emptyGroup(objects)
         emptyGroup(transitions)
+        let textureLoader = new THREE.TextureLoader()
         let floorData = world.floors
         let objectData = world.objects
         let transitionsData = world.transitions
@@ -342,10 +382,29 @@ document.addEventListener('DOMContentLoaded', () => {
         floorData.forEach(floor => {
             let Geometry = new THREE.PlaneGeometry(floor.geometry.width, floor.geometry.height)
             let Material = new THREE.MeshStandardMaterial({ color: floor.color })
-            let Mesh = new THREE.Mesh(Geometry, Material)
-            Mesh.position.set(floor.position.x, floor.position.y, floor.position.z)
-            Mesh.rotation.set(floor.rotation.x, floor.rotation.y, floor.rotation.z)
-            floors.add(Mesh)
+            
+            if (floor.material) {
+                textureLoader.load(
+                    `${host}/textures/${floor.material}`, 
+                    (texture) => {
+                        Material = new THREE.MeshStandardMaterial({ map: texture })
+                        console.log(`${floor.material} loaded.`)
+                        let Mesh = new THREE.Mesh(Geometry, Material)
+                        Mesh.position.set(floor.position.x, floor.position.y, floor.position.z)
+                        Mesh.rotation.set(floor.rotation.x, floor.rotation.y, floor.rotation.z)
+                        floors.add(Mesh)
+                    },
+                    (error) => { 
+                        console.log(`Could not find ${floor.material} in texture set.`) 
+                    }
+                )
+            } else {
+                // If no material is provided, use the default colour
+                let Mesh = new THREE.Mesh(Geometry, Material)
+                Mesh.position.set(floor.position.x, floor.position.y, floor.position.z)
+                Mesh.rotation.set(floor.rotation.x, floor.rotation.y, floor.rotation.z)
+                floors.add(Mesh)
+            }
         })
 
         objectData.forEach(object => {
@@ -364,11 +423,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 var Geometry = new THREE.BoxGeometry(transition.geometry.width, transition.geometry.height, transition.geometry.depth)
             }
             let Material = new THREE.MeshStandardMaterial({ color: transition.color })
-            let Mesh = new THREE.Mesh(Geometry, Material)
-            Mesh.position.set(transition.position.x, transition.position.y, transition.position.z)
-            Mesh.rotation.set(transition.rotation.x, transition.rotation.y, transition.rotation.z)
-            Mesh.userData.transition = transition.onClick
-            transitions.add(Mesh)
+
+            if (transition.material) {
+                textureLoader.load(
+                    `${host}/textures/${transition.material}`, 
+                    (texture) => {
+                        Material = new THREE.MeshStandardMaterial({ map: texture })
+                        console.log(`${transition.material} loaded.`)
+                        let Mesh = new THREE.Mesh(Geometry, Material)
+                        Mesh.position.set(transition.position.x, transition.position.y, transition.position.z)
+                        Mesh.rotation.set(transition.rotation.x, transition.rotation.y, transition.rotation.z)
+                        Mesh.userData.transition = transition.onClick            
+                        transitions.add(Mesh)
+                    },
+                    (error) => { 
+                        console.log(`Could not find ${transition.material} in texture set.`) 
+                    }
+                )
+            } else {
+                // If no material is provided, use the default colour
+                let Mesh = new THREE.Mesh(Geometry, Material)
+                Mesh.position.set(transition.position.x, transition.position.y, transition.position.z)
+                Mesh.rotation.set(transition.rotation.x, transition.rotation.y, transition.rotation.z)
+                Mesh.userData.transition = transition.onClick            
+                transitions.add(Mesh)
+            }
         })
 
         scene.add(floors)
@@ -394,7 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
     })
 
     socket.on('sendPlayerData', (player) => {
-        instantiatePlayer(player.id, player.username, player.color, player.position)
+        instantiatePlayer(player.id, player.username, player.shape, player.color, player.position)
     })
 
     // Client-Side Message Sent To Game Server
