@@ -39,15 +39,15 @@ const transitions = new THREE.Group()
 // Lighting 
 const ambientLight = new THREE.AmbientLight(0x404040)
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
-directionalLight.position.set(1, 10, -10)
-const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 5)
+directionalLight.position.set(5, 10, 3)
+//const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 5)
 
 renderer.shadowMap.enabled = true
 directionalLight.castShadow = true
 
 scene.add(ambientLight)
 scene.add(directionalLight)
-scene.add(directionalLightHelper)
+//scene.add(directionalLightHelper)
 
 // Player dictionary
 var playersInScene = {}
@@ -229,8 +229,8 @@ function instantiatePlayer(id, name, shape, color, position) {
 function chatBubble(player, message) {
     const canvas = document.createElement('canvas')
     const context = canvas.getContext('2d')
-    canvas.width = 1024
-    canvas.height = 512
+    canvas.width = 4096
+    canvas.height = 2048
 
     
     // Draw the chat bubble
@@ -249,7 +249,7 @@ function chatBubble(player, message) {
     context.fill()
     context.stroke()
 
-    context.font = '100px Arial'
+    context.font = '400px Arial'
     context.fillStyle = 'black'
     context.textAlign = 'center'
     context.fillText(message, centerX, centerY)
