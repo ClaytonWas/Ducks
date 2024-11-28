@@ -154,7 +154,8 @@
             "rotation": { "x": 0, "y": 0, "z": 0 },
             "color": "#ab8888",
             "onClick": "testScene1",
-            "material": "transitiondoor1.png"
+            "material": "transitiondoor1.png",
+            "placePlayer": { "x": 0, "y": 0.5, "z": 0.2 }
         }
     ]
 }
