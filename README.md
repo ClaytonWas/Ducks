@@ -28,7 +28,7 @@ To get started with this project, you'll need to install the necessary dependenc
     | username    | password | salt | hash | shape | color | created_at |
     | -------- | ------- | ------- | ------- | ------- | ------- | ------- | 
     | clay  | foobar    | $2b$10$Tpc0EjrF2TegTwUUB7MP5e | $2b$10$Tpc0EjrF2TegTwUUB7MP5eSHZ4M/Knq3FrMDRzpyhiTdpDe5jS8Y2 | sphere | #613583 | 2024-12-25 09:15:00 |
-    | parsa | foobar     |
+    | parsa | foobar     | $2b$10$NjYK7EhH7jCqRE.rd/TGk. | $2b$10$NjYK7EhH7jCqRE.rd/TGk.IPN6Va2bshvhzKpZ7KommM7yN2JaK5a | cone | #00aa00 | 2024-12-25 09:15:00 |
 
 
 2. **Run the server** <br />
@@ -47,12 +47,6 @@ To get started with this project, you'll need to install the necessary dependenc
 
 
 # TODO:
-Scene transitions
-
-Typeracer
-
-Tic-Tac-Toe
-
 Systems Testing
 
 UML diagrams
