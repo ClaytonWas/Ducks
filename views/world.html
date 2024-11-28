@@ -5,11 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ducks</title>
     <link rel="stylesheet" href="/styles/game.css">
+    <link rel="stylesheet" href="/styles/tic-tac-toe.css">
+    <link rel="stylesheet" href="/styles/typing.css">
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
     <script src="./scripts/player.js" defer></script>
     <script type="module" src="./scripts/client.js" defer></script>
     <script type="module" src="./scripts/priorityQueue.js" defer></script>
+    <script type="module" src="./scripts/ticTacToe.js" defer></script>
+    <script type="module" src="./scripts/typing.js" defer></script>
 </head>
 <body>
     <div id = "gameDiv">
@@ -26,5 +30,68 @@
             <p id="worldDateTime"></p>
         </div>
     </div>
+
+    <div id ="boardsOverlay" class ="hidden">
+        <div id ="modal-boards" class="modal">
+            <h2>Available boards</h2>
+            <div id="board-list">
+                <div id = "Board 1" class = "board-card" onclick="joinTTTBoard('Board 1')">
+                    <h3>Tic-tac-toe board 1</h3>
+                    <p>Join board</p>
+                </div>
+                <div id = "Board 2" class = "board-card" onclick="joinTTTBoard('Board 2')">
+                    <h3>Tic-tac-toe board 2</h3>
+                    <p>Join board</p>
+                </div>
+                <div id = "Board 3" class = "board-card" onclick="joinTTTBoard('Board 3')">
+                    <h3>Tic-tac-toe board 3</h3>
+                    <p>Join board</p>
+                </div>
+                <div id = "Board 4" class = "board-card" onclick="joinTTTBoard('Board 4')">
+                    <h3>Tic-tac-toe board 4</h3>
+                    <p>Join board</p>
+                </div>
+            </div>
+            <br>
+            <button class="closeButton" onclick="TicTacToe.hideBoards()">Close</button>
+        </div>
+    </div>
+
+    
+    <div id="boardOverlay" class="hidden">
+        <div id="modal-board" class="modal">
+            <div id="game-board" class="board"></div>
+            <br>
+            <button class="closeButton" onclick="leaveTTTBoard()">Leave Game Board</button>
+            <p id="gameInfoMessage" class="message"></p>
+        </div>
+    </div>
+
+    <div id="typing-options" class="typing-hidden">
+        <div id="modal-type-options" class="typing-modal">
+            <p>149 characters max</p>
+            <button class="typing-option-button" onclick="typeQuote('short')">Short Quote</button>
+            <br>
+            <p>150-299 characters</p>
+            <button class="typing-option-button" onclick="typeQuote('medium')">Medium Quote</button>
+            <br>
+            <p>300+ character</p>
+            <button class="typing-option-button" onclick="typeQuote('long')">Long Quote</button>
+            <br>
+            <button class="typing-button typing-closeButton" onclick="Typing.hideTypingOptions()">Exit</button>
+        </div>
+    </div>
+    
+    <div id="typing-interface" class="typing-hidden">
+        <div id="modal-type-display" class="typing-modal">
+            <div id="timer" class="timer"></div>
+            <br>
+            <div id="quoteDisplay" class="quote-display"></div>
+            <textarea id="quoteInput" class="quote-input" autofocus></textarea>
+            <br>
+            <button class="typing-button typing-closeButton" onclick="Typing.hideInterface()">Quit</button>
+        </div>
+    </div>
+
 </body>
 </html>
