@@ -462,6 +462,10 @@ document.addEventListener('DOMContentLoaded', () => {
         scene.add(floors)
         scene.add(objects)
         scene.add(transitions)
+
+        // Reinitalize playersInScene and movementSystem
+        playersInScene = {}
+        movementSystem.updateSceneAndPlayers(scene, playersInScene)
     })
 
     socket.on('sendWorldTime', (date) => {
@@ -483,6 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('sendPlayerData', (player) => {
         instantiatePlayer(player.id, player.username, player.shape, player.color, player.position)
+        console.log(`${player.username} added to my scene`)
     })
 
     // Client-Side Message Sent To Game Server

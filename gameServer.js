@@ -25,6 +25,10 @@ const testScene3 = require('./scenes/testScene3.json')
 
 const playersInServer = new Map()
 
+// Scene Map globals
+const scenesMap = new Map()
+const playerToScene = new Map()
+
 // Tic Tac Toe Game globals
 const boardStatuses = new Map()
 const boards = new Map()
@@ -87,6 +91,104 @@ io.use((socket, next) => {
         next()
     })
 })
+
+// Initialize scene maps
+function initSceneMap() {
+
+    scenesMap.set('gameRoomScene', [])
+    scenesMap.set('testScene1', [])
+    scenesMap.set('testScene2', [])
+    scenesMap.set('testScene3', [])
+
+}
+
+function messagePlayersInScene(socket, message) {
+
+    const sceneId = playerToScene.get(socket)
+
+    if (sceneId) {
+
+        const sceneArr = scenesMap.get(sceneId)
+
+        sceneArr.forEach(playerSocket => {
+
+            playerSocket.emit('recieveGlobalUserMessage', message, socket.user.id, socket.user.username)
+
+        })
+
+    }
+
+}
+
+function removePlayersFromSocketScene(socket) {
+
+    const sceneId = playerToScene.get(socket)
+
+    console.log(`${socket.user.username} has left ${sceneId}`)
+
+    if (sceneId) {
+
+        const sceneArr = scenesMap.get(sceneId)
+
+        sceneArr.forEach(playerSocket => {
+
+            socket.emit('userDisconnected', playerSocket.user.id)
+
+        })
+
+    }
+
+}
+
+function removePlayerFromScene(socket) {
+
+    const sceneId = playerToScene.get(socket)
+
+    console.log(`${socket.user.username} has left ${sceneId}`)
+
+    if (sceneId) {
+
+        const sceneArr = scenesMap.get(sceneId)
+
+        sceneArr.forEach(playerSocket => {
+
+            playerSocket.emit('userDisconnected', socket.user.id)
+
+            if (playerSocket != socket) {
+
+                socket.emit('userDisconnected', playerSocket.user.id)
+
+            }
+            
+        })
+
+    }
+}
+
+function removePlayerFromSceneMaps(socket) {
+
+    const sceneId = playerToScene.get(socket)
+
+    if (sceneId) {
+
+        const sceneArr = scenesMap.get(sceneId)
+
+        scenesMap.set(sceneId, sceneArr.filter(s => s !== socket))
+
+        playerToScene.delete(socket)
+    }
+
+}
+
+function addPlayerToSceneMaps(socket, sceneId) {
+
+    playerToScene.set(socket, sceneId)
+
+    scenesMap.get(sceneId).push(socket)
+
+    console.log(`${socket.user.username} has joined ${sceneId}`)
+
+}
 
 // API Communications
 async function getTimeFromAPI() {
@@ -362,22 +464,66 @@ const playerMonitor = {
         )
     },
     emitNewPlayer: (socket) => {
-        io.emit('sendPlayerData', playersInServer.get(socket.user.id))
+
+        const sceneId = playerToScene.get(socket)
+
+        const sceneArr = scenesMap.get(sceneId)
+
+        sceneArr.forEach(playerSocket => {
+
+            if (playerSocket != socket) {
+                playerSocket.emit('sendPlayerData', playersInServer.get(socket.user.id))
+            }
+               
+        })
+
+        //io.emit('sendPlayerData', playersInServer.get(socket.user.id))
     },
     removeFromPlayerMap: (socket) => {
         playersInServer.delete(socket.user.id)
     },
     emitPlayerMap: (socket) => {
-        playersInServer.forEach((values) => {
-            socket.emit('sendPlayerData', values)
+
+        const sceneId = playerToScene.get(socket)
+
+        const sceneArr = scenesMap.get(sceneId)
+
+        sceneArr.forEach(playerSocket => {
+
+            const playerValues = playersInServer.get(playerSocket.user.id)
+
+            socket.emit('sendPlayerData', playerValues)
+            
         })
+
+       // playersInServer.forEach((values) => {
+       //     socket.emit('sendPlayerData', values)
+       // })
     },
     updatePlayerPosition: (socket, point) => {
-        const player = playersInServer.get(socket.user.id)
-        if (player) {
+
+        const sceneId = playerToScene.get(socket)
+
+        const sceneArr = scenesMap.get(sceneId)
+
+        if (sceneArr) {
+
+            const player = playersInServer.get(socket.user.id)
+
             player.position = point
-            io.emit('broadcastPlayerPosition', player)
+
+            sceneArr.forEach(playerSocket => {
+
+                playerSocket.emit('broadcastPlayerPosition', player)
+
+            })
+
         }
+
+        // if (player) {
+        //    player.position = point
+        //    io.emit('broadcastPlayerPosition', player)
+        // }
     }
 }
 
@@ -390,28 +536,36 @@ io.on('connection', (socket) => {
     socket.emit('recieveWorldData', testScene1)
     socket.emit('sendWorldTime', worldDateTime)
 
-    playerMonitor.emitPlayerMap(socket)
+    playerToScene.set(socket, 'testScene1')
+    scenesMap.get('testScene1').push(socket)
+
     playerMonitor.addToPlayerMap(socket)
+    playerMonitor.emitPlayerMap(socket)
+    
     playerMonitor.emitNewPlayer(socket)
+
+    console.log(`${socket.user.username} is in scene 1`)
 
     serverTTT.sendPlayerBoardInfo(socket)
 
     socket.on('disconnect', () => {
         console.log(`${username} disconnected`)
         serverTTT.leaveBoard(socket)
+        removePlayerFromScene(socket)
         playerMonitor.removeFromPlayerMap(socket)
-        io.emit('userDisconnected', socket.user.id)
+        removePlayerFromSceneMaps(socket)
+        //io.emit('userDisconnected', socket.user.id)
     })
 
     socket.on('sendGlobalUserMessage', (message) => {
-        io.emit('recieveGlobalUserMessage', message, socket.user.id, socket.user.username)
+        messagePlayersInScene(socket, message)
+        //io.emit('recieveGlobalUserMessage', message, socket.user.id, socket.user.username)
     })
 
     // Server receive's updated position from socket
     socket.on('updatePlayerPosition', (point) => {
         playerMonitor.updatePlayerPosition(socket, point)
     })
-
 
     //Tic-Tac-Toe minigame client requests
     socket.on('joinBoard', (boardId) => {
@@ -435,22 +589,41 @@ io.on('connection', (socket) => {
         serverTyping.getRandomQuote(socket, params)
     })
 
-
     // Scene Transitions Requests
     socket.on('testScene1', () => {
+        removePlayerFromScene(socket)
+        removePlayerFromSceneMaps(socket)
+        addPlayerToSceneMaps(socket, 'testScene1')
         socket.emit('recieveWorldData', testScene1)
+        playerMonitor.emitPlayerMap(socket)
+        playerMonitor.emitNewPlayer(socket)
     })
 
     socket.on('testScene2', () => {
+        removePlayerFromScene(socket)
+        removePlayerFromSceneMaps(socket)
+        addPlayerToSceneMaps(socket, 'testScene2')
         socket.emit('recieveWorldData', testScene2)
+        playerMonitor.emitPlayerMap(socket)
+        playerMonitor.emitNewPlayer(socket)
     })
 
     socket.on('testScene3', () => {
+        removePlayerFromScene(socket)
+        removePlayerFromSceneMaps(socket)
+        addPlayerToSceneMaps(socket, 'testScene3')
         socket.emit('recieveWorldData', testScene3)
+        playerMonitor.emitPlayerMap(socket)
+        playerMonitor.emitNewPlayer(socket)
     })
 
     socket.on('gameroomScene', () => {
+        removePlayerFromScene(socket)
+        removePlayerFromSceneMaps(socket)
+        addPlayerToSceneMaps(socket, 'gameRoomScene')
         socket.emit('recieveWorldData', gameroomScene)
+        playerMonitor.emitPlayerMap(socket)
+        playerMonitor.emitNewPlayer(socket)
     })
 
 })
@@ -471,8 +644,10 @@ async function initializeServer() {
         })
         setInterval(playerMonitor.emitWorldDateTime, 60000)
         serverTTT.initializeBoards()
+        initSceneMap()
     } catch (error) {
         console.error('Server failed to start.')
+        console.log(error)
         process.exit(1)
     }
 }
