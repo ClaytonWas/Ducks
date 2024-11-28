@@ -49,7 +49,8 @@
             "rotation": { "x": 0, "y": 0.7853981634, "z": 0 },
             "color": "#ab8888",
             "onClick": "testScene2",
-            "material": "transitiondoor3.png"
+            "material": "transitiondoor3.png",
+            "placePlayer": { "x": -9, "y": 0.5, "z": -13.8 }
         },
         {
             "id": 1,
@@ -58,8 +59,9 @@
             "position": { "x": -1.5, "y": 2, "z": -14 },
             "rotation": { "x": 0, "y": 0, "z": 0 },
             "color": "#ab8888",
-            "onClick": "gameroomScene",
-            "material": "monkey-taking-pictures-photographer.gif"
+            "onClick": "gameRoomScene",
+            "material": "monkey-taking-pictures-photographer.gif",
+            "placePlayer": { "x": -9, "y": 0.5, "z": -13.8 }
         }
     ]
 }

@@ -35,7 +35,8 @@
             "rotation": { "x": 0, "y": 0, "z": 0 },
             "color": "#ab8888",
             "onClick": "testScene1",
-            "material": "transitiondoor2.png"
+            "material": "transitiondoor2.png",
+            "placePlayer": { "x": 1.5, "y": 0.5, "z": -13.8 }
         },
         {
             "id": 2,
@@ -45,7 +46,8 @@
             "rotation": { "x": 0, "y": 0.7853981634, "z": 0 },
             "color": "#ab8888",
             "onClick": "testScene3",
-            "material": "transitiondoor3.png"
+            "material": "transitiondoor3.png",
+            "placePlayer": { "x": -9, "y": 0.5, "z": -13.8 }
         }
     ]
 }
