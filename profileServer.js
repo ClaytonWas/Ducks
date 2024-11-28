@@ -165,6 +165,10 @@ app.get('/join', (req, res) => {
 })
 
 // Server start
-app.listen(port, () => {
-    console.log(`Login server running on http://localhost:${port}`)
-})
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(port, () => {
+        console.log(`Login server running on http://localhost:${port}`)
+    })
+}
+  
+module.exports = app
