@@ -18,7 +18,11 @@ const SHIP = {
 }
 
 // Globals
-const world = require('./scenes/gameroomScene.json')
+const gameroomScene = require('./scenes/gameroomScene.json')
+const testScene1 = require('./scenes/testScene1.json')
+const testScene2 = require('./scenes/testScene2.json')
+const testScene3 = require('./scenes/testScene3.json')
+
 const playersInServer = new Map()
 
 // Tic Tac Toe Game globals
@@ -383,7 +387,7 @@ io.on('connection', (socket) => {
     console.log(`${username} connected`)
 
     socket.emit('welcome', `Connection established.`)
-    socket.emit('recieveWorldData', world)
+    socket.emit('recieveWorldData', testScene1)
     socket.emit('sendWorldTime', worldDateTime)
 
     playerMonitor.emitPlayerMap(socket)
@@ -429,6 +433,24 @@ io.on('connection', (socket) => {
     //Typing minigame client requests
     socket.on('requestQuote', (params) => {
         serverTyping.getRandomQuote(socket, params)
+    })
+
+
+    // Scene Transitions Requests
+    socket.on('testScene1', () => {
+        socket.emit('recieveWorldData', testScene1)
+    })
+
+    socket.on('testScene2', () => {
+        socket.emit('recieveWorldData', testScene2)
+    })
+
+    socket.on('testScene3', () => {
+        socket.emit('recieveWorldData', testScene3)
+    })
+
+    socket.on('gameroomScene', () => {
+        socket.emit('recieveWorldData', gameroomScene)
     })
 
 })

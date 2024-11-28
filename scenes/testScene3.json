@@ -42,13 +42,24 @@
     ],
     "transitions": [
         {
+            "id": 2,
+            "type": "box",
+            "geometry": { "width": 2, "height": 4, "depth": 0.2 },
+            "position": { "x": -9, "y": 2, "z": -14 },
+            "rotation": { "x": 0, "y": 0.7853981634, "z": 0 },
+            "color": "#ab8888",
+            "onClick": "testScene2",
+            "material": "transitiondoor3.png"
+        },
+        {
             "id": 1,
             "type": "box",
-            "geometry": { "width": 2, "height": 2, "depth": 2},
-            "position": { "x": 2, "y": 1, "z": -15 },
+            "geometry": { "width": 4, "height": 4, "depth": 0.2 },
+            "position": { "x": -1.5, "y": 2, "z": -14 },
             "rotation": { "x": 0, "y": 0, "z": 0 },
-            "color": "#00aaaa",
-            "onClick": "loadScene2"
+            "color": "#ab8888",
+            "onClick": "gameroomScene",
+            "material": "monkey-taking-pictures-photographer.gif"
         }
     ]
 }
