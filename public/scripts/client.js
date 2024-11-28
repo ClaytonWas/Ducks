@@ -2,7 +2,11 @@ import Movement from './Movement.js'
 
 import TicTacToe from './ticTacToe.js'
 
-window.TicTacToe = TicTacToe;
+import Typing from './typing.js'
+
+window.TicTacToe = TicTacToe
+
+window.Typing = Typing
 
 var inTTTGame = false
 
@@ -62,6 +66,8 @@ socket.on("connect_error", (err) => {
 socket.on('welcome', (message) => {
     console.log(message)
 })
+
+//TicTacToe mini-game methods
 
 function joinTTTBoard (boardId) {
     socket.emit('joinBoard', boardId)
@@ -136,6 +142,30 @@ function TTTGameLoop(marker) {
     })
     
 }
+
+//Typing mini-game functions
+
+function typeQuote(quoteSize) {
+
+    Typing.hideTypingOptions()
+
+    let typingGame = new Typing(socket)
+
+    typingGame.requestQuote(quoteSize)
+
+    socket.on('sendQuote', (quoteData) => {
+        //console.log(quoteData)
+
+        typingGame.loadQuote(quoteData)
+
+        typingGame.typeInput()
+    })
+
+    Typing.showInterface()
+
+}
+
+window.typeQuote = typeQuote
 
 function onMouseClick(event) {
     mouse.x = ((event.clientX - gameWindow.getBoundingClientRect().left) / gameWindow.clientWidth) * 2 - 1;
@@ -277,6 +307,9 @@ const toolbarInputs = {
     '5': () => {
         TicTacToe.showBoards()
     },
+    '6': () => {
+        Typing.showTypingOptions()
+    },
     '-': () => {
         console.log('Decreasing Sunlight Intensity')
         directionalLight.intensity -= 0.1
@@ -413,6 +446,19 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             console.warn(`Player with id ${id} not found in playersInScene.`);
         }
+    })
+
+    socket.on('updateBoard', (updateData) => {
+        TicTacToe.updateBoardDescription(updateData)
+    })
+
+    socket.on('lockBoard', (boardId) => {
+        TicTacToe.lockBoard(boardId)
+    })
+
+    socket.on('unlockBoard', (boardId) => {
+        console.log('Unlocking board ', boardId)
+        TicTacToe.unlockBoard(boardId)
     })
 
     // Animation Loop

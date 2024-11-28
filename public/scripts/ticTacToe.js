@@ -17,8 +17,8 @@ export default class TicTacToe {
         board.innerHTML = "" // Clear previous board
 
         // Clear existing event listeners
-        // const newBoard = board.cloneNode(true);
-        // board.parentNode.replaceChild(newBoard, board);
+        // const newBoard = board.cloneNode(true)
+        // board.parentNode.replaceChild(newBoard, board)
 
         this.state.forEach((_, i) => {
             const cell = document.createElement("div")
@@ -28,7 +28,7 @@ export default class TicTacToe {
             console.log('Created cell ', i)
 
             // Attach click listener to individual cells
-            cell.addEventListener("click", (e) => this.playerCheckCell(e));
+            cell.addEventListener("click", (e) => this.playerCheckCell(e))
         })
     }
 
@@ -78,18 +78,18 @@ export default class TicTacToe {
     }
 
     enableCellClicks() {
-        const cells = document.getElementsByClassName('cell');
+        const cells = document.getElementsByClassName('cell')
         for (const cell of cells) {
             if (!cell.classList.contains('taken')) {
-                cell.style.pointerEvents = 'auto';
+                cell.style.pointerEvents = 'auto'
             }
         }
     }
 
     disableCellClicks() {
-        const cells = document.getElementsByClassName('cell');
+        const cells = document.getElementsByClassName('cell')
         for (const cell of cells) {
-            cell.style.pointerEvents = 'none';
+            cell.style.pointerEvents = 'none'
         }
         console.log("Cell clicks disabled.")
     }
@@ -109,10 +109,10 @@ export default class TicTacToe {
             [2, 5, 8], // Columns
             [0, 4, 8],
             [2, 4, 6], // Diagonals
-        ];
+        ]
         return wins.find((combo) =>
             combo.every((i) => this.state[i] === this.marker)
-        );
+        )
     }
 
     checkGameState() {
@@ -147,11 +147,11 @@ export default class TicTacToe {
     }
 
     static showBoards() {
-        document.getElementById('boardsOverlay').classList.remove('hidden');
+        document.getElementById('boardsOverlay').classList.remove('hidden')
     }
     
     static hideBoards() {
-        document.getElementById('boardsOverlay').classList.add('hidden');
+        document.getElementById('boardsOverlay').classList.add('hidden')
     }
 
     static showBoard() {
@@ -160,6 +160,44 @@ export default class TicTacToe {
 
     static leaveBoard () {
         document.getElementById('boardOverlay').classList.add('hidden')
+    }
+
+    static updateBoardDescription (updateData) {
+
+        const board = document.getElementById(updateData.boardId)
+
+        if (board) {
+
+            const description = board.querySelector('p')
+
+            description.textContent = updateData.boardMessage
+
+        }
+
+    }
+
+    static lockBoard (boardId) {
+
+        const board = document.getElementById(boardId)
+
+        if (board) {
+
+            board.style.pointerEvents = 'none'
+
+        }
+
+    }
+
+    static unlockBoard(boardId) {
+
+        const board = document.getElementById(boardId)
+
+        if (board) {
+
+             board.style.pointerEvents = 'auto'
+
+        }
+
     }
 }
 

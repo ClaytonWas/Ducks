@@ -140,3 +140,14 @@ button:hover {
     font-size: 18px;
     font-weight: bold;
 }
+
+.correct
+{
+    color: green;
+    text-decoration: underline;
+}
+
+.incorrect
+{
+    color: red;
+}

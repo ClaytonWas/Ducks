@@ -6,12 +6,14 @@
     <title>Ducks</title>
     <link rel="stylesheet" href="/styles/game.css">
     <link rel="stylesheet" href="/styles/tic-tac-toe.css">
+    <link rel="stylesheet" href="/styles/typing.css">
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
     <script src="./scripts/player.js" defer></script>
     <script type="module" src="./scripts/client.js" defer></script>
     <script type="module" src="./scripts/priorityQueue.js" defer></script>
     <script type="module" src="./scripts/ticTacToe.js" defer></script>
+    <script type="module" src="./scripts/typing.js" defer></script>
 </head>
 <body>
     <div id = "gameDiv">
@@ -51,16 +53,43 @@
                 </div>
             </div>
             <br>
-            <button class="closeButtons" onclick="TicTacToe.hideBoards()">Close</button>
+            <button class="closeButton" onclick="TicTacToe.hideBoards()">Close</button>
         </div>
     </div>
 
+    
     <div id="boardOverlay" class="hidden">
         <div id="modal-board" class="modal">
             <div id="game-board" class="board"></div>
             <br>
-            <button class="closeButtons" onclick="leaveTTTBoard()">Leave Game Board</button>
+            <button class="closeButton" onclick="leaveTTTBoard()">Leave Game Board</button>
             <p id="gameInfoMessage" class="message"></p>
+        </div>
+    </div>
+
+    <div id="typing-options" class="typing-hidden">
+        <div id="modal-type-options" class="typing-modal">
+            <p>149 characters max</p>
+            <button class="typing-option-button" onclick="typeQuote('short')">Short Quote</button>
+            <br>
+            <p>150-299 characters</p>
+            <button class="typing-option-button" onclick="typeQuote('medium')">Medium Quote</button>
+            <br>
+            <p>300+ character</p>
+            <button class="typing-option-button" onclick="typeQuote('long')">Long Quote</button>
+            <br>
+            <button class="typing-button typing-closeButton" onclick="Typing.hideTypingOptions()">Exit</button>
+        </div>
+    </div>
+    
+    <div id="typing-interface" class="typing-hidden">
+        <div id="modal-type-display" class="typing-modal">
+            <div id="timer" class="timer"></div>
+            <br>
+            <div id="quoteDisplay" class="quote-display"></div>
+            <textarea id="quoteInput" class="quote-input" autofocus></textarea>
+            <br>
+            <button class="typing-button typing-closeButton" onclick="Typing.hideInterface()">Quit</button>
         </div>
     </div>
 

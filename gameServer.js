@@ -20,6 +20,7 @@ const world = require('./scenes/testScene2.json')
 const playersInServer = new Map()
 
 // Tic Tac Toe Game globals
+const boardStatuses = new Map()
 const boards = new Map()
 const playerToBoard = new Map()
 
@@ -88,7 +89,7 @@ async function getTimeFromAPI() {
     return worldDateTime
 } 
 
-// Functions for Tic-Tac-Toe game interactivity
+// Functions for Tic-Tac-Toe minigame interactivity
 const serverTTT = {
 
     initializeBoards: () => {
@@ -96,24 +97,61 @@ const serverTTT = {
         boards.set('Board 2', [])
         boards.set('Board 3', [])
         boards.set('Board 4', [])
+
+        boardStatuses.set('Board 1', {message: 'Join Board', locked: false})
+        boardStatuses.set('Board 2', {message: 'Join Board', locked: false})
+        boardStatuses.set('Board 3', {message: 'Join Board', locked: false})
+        boardStatuses.set('Board 4', {message: 'Join Board', locked: false})
+    },
+
+    sendPlayerBoardInfo: (socket) => {
+
+        boardStatuses.forEach((boardStatus, boardId) => {
+
+            socket.emit('updateBoard', {boardId: boardId, boardMessage: boardStatus.message})
+
+            if (boardStatus.locked) {
+                socket.emit('lockBoard', boardId)
+            }
+
+        })
+
     },
 
     startGame: (board, socket) => {
 
         let opponentName = ""
 
+        let playerNames = []
+
         board.forEach(playerSocket => {
 
             if (playerSocket != socket) {
                 playerSocket.emit('startGame', socket.user.username)
                 console.log('Told socket with username', playerSocket.user.username, 'that they can start playing')
+                playerNames.push(playerSocket.user.username)
                 opponentName = playerSocket.user.username
             } else {
                 playerSocket.emit('startGame', opponentName)
                 console.log('Told socket with username', playerSocket.user.username, 'that they can start playing')
+                playerNames.push(playerSocket.user.username)
             }
             
         })
+
+        const boardId = playerToBoard.get(socket)
+
+        const lockBoardMessage = `${playerNames[0]} and ${playerNames[1]} are playing on this board`
+
+        const boardStatus = boardStatuses.get(boardId)
+
+        boardStatus.message = lockBoardMessage
+
+        boardStatus.locked = true
+
+        io.emit('updateBoard', {boardId: boardId, boardMessage: lockBoardMessage})
+
+        io.emit('lockBoard', boardId)
     },
 
     endGameCondition: (socket, endData) => {
@@ -174,6 +212,14 @@ const serverTTT = {
             if (boards.get(boardId).length == 2) {
                 console.log('Enough players on', boardId, 'to start game')
                 serverTTT.startGame(boards.get(boardId), socket)
+            } else {
+                const boardMessage = `${socket.user.username} is waiting for an opponent`
+
+                const boardStatus = boardStatuses.get(boardId)
+
+                boardStatus.message = boardMessage
+
+                io.emit('updateBoard', {boardId: boardId, boardMessage: boardMessage})
             }
 
         }
@@ -182,7 +228,7 @@ const serverTTT = {
             response = {
                 isSpace: false
             }
-            socket.emit('joinBoardResponse', reponse)
+            socket.emit('joinBoardResponse', response)
         }
     },
 
@@ -207,6 +253,21 @@ const serverTTT = {
                     }
                 })
             }
+
+            if (boards.get(boardId).length == 0) {
+
+                console.log('Board is now empty')
+
+                io.emit('updateBoard', {boardId: boardId, boardMessage: 'Join Board'})
+
+                const boardStatus = boardStatuses.get(boardId)
+
+                boardStatus.message = 'Join Board'
+
+                boardStatus.locked = false
+
+                io.emit('unlockBoard', boardId)
+            }
         } 
 
     },
@@ -228,6 +289,36 @@ const serverTTT = {
         }
 
     }
+}
+
+//Functions for typing minigame
+const serverTyping = {
+
+    async getRandomQuote(socket, params) {
+
+        const originalTLSValue = process.env['NODE_TLS_REJECT_UNAUTHORIZED']
+
+        process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0'
+
+        try {
+
+            const quoteAPIURI = "https://api.quotable.io/random" + params
+
+            const response = await fetch(quoteAPIURI)
+            
+            if (!response.ok) {
+                console.log('Error fetching quote')
+            } else {
+                const quoteData = await response.json()
+                //console.log('Quote retrieved for socket ', socket.user.username)
+                socket.emit('sendQuote', quoteData)
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        } finally {
+            process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = originalTLSValue
+        }
+    } 
 }
 
 // Functions for world data.
@@ -280,6 +371,8 @@ io.on('connection', (socket) => {
     playerMonitor.addToPlayerMap(socket)
     playerMonitor.emitNewPlayer(socket)
 
+    serverTTT.sendPlayerBoardInfo(socket)
+
     socket.on('disconnect', () => {
         console.log(`${username} disconnected`)
         serverTTT.leaveBoard(socket)
@@ -296,6 +389,8 @@ io.on('connection', (socket) => {
         playerMonitor.updatePlayerPosition(socket, point)
     })
 
+
+    //Tic-Tac-Toe minigame client requests
     socket.on('joinBoard', (boardId) => {
         serverTTT.joinBoard(socket, boardId)
     })
@@ -311,6 +406,12 @@ io.on('connection', (socket) => {
     socket.on('endGame', (endData) => {
         serverTTT.endGameCondition(socket, endData)
     })
+
+    //Typing minigame client requests
+    socket.on('requestQuote', (params) => {
+        serverTyping.getRandomQuote(socket, params)
+    })
+
 })
 
 // Handle crashouts
