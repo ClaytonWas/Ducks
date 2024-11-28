@@ -27,6 +27,7 @@ const playersInServer = new Map()
 
 // Scene Map globals
 const scenesMap = new Map()
+const sceneTransCords = new Map()
 const playerToScene = new Map()
 
 // Tic Tac Toe Game globals
@@ -95,11 +96,19 @@ io.use((socket, next) => {
 const serverScenes = {
 
     // Initialize scene maps
-    initSceneMap: () => {
+    initSceneMaps: () => {
         scenesMap.set('gameRoomScene', [])
         scenesMap.set('testScene1', [])
         scenesMap.set('testScene2', [])
         scenesMap.set('testScene3', [])
+
+        sceneTransCords.set('gameRoomScene->testScene1', {x: -1.5, y: 0.5, z: -13.8})
+        sceneTransCords.set('testScene1->gameRoomScene', {x: 0, y: 0.5, z: 0.2})
+        sceneTransCords.set('testScene1->testScene2', {x: 1.5, y: 0.5, z: -13.8})
+        sceneTransCords.set('testScene2->testScene1', {x: 1.5, y: 0.5, z: -13.8})
+        sceneTransCords.set('testScene2->testScene3', {x: -9, y: 0.5, z: -13.8})
+        sceneTransCords.set('testScene3->testScene2', {x: -9, y: 0.5, z: -13.8})
+        sceneTransCords.set('testScene3->gameRoomScene', {x: -9, y: 0.5, z: -13.8})
     },
 
     messagePlayersInScene: (socket, message) => {
@@ -164,30 +173,21 @@ const serverScenes = {
 
     sceneTransiton: (socket, sceneId, sceneJson) => {
 
-        const currSceneId = playerToScene.get(socket)
-
-        const sceneTransitions = sceneJson.transitions
-
         let newCoordinates = {x: 0, y: 0.5, z: 0}
 
-        for (const transition of sceneTransitions) {
+        const currSceneId = playerToScene.get(socket)
 
-            if (currSceneId === transition.onClick) {
+        const transitionKey = currSceneId + "->" + sceneId
 
-                const sceneX = transition.placePlayer.x
-                const sceneY = transition.placePlayer.y
-                const sceneZ = transition.placePlayer.z
+        if (sceneTransCords.get(transitionKey)) {
 
-                newCoordinates = {x: sceneX, y: sceneY, z: sceneZ}
+            newCoordinates = sceneTransCords.get(transitionKey)
 
-                break
-            }
+            playersInServer.get(socket.user.id).position = newCoordinates
 
         }
 
         console.log('Should place player at coordinates ', newCoordinates)
-
-        playersInServer.get(socket.user.id).position = newCoordinates
 
         serverScenes.removePlayerFromScene(socket)
         serverScenes.removePlayerFromSceneMaps(socket)
@@ -634,7 +634,7 @@ async function initializeServer() {
         })
         setInterval(playerMonitor.emitWorldDateTime, 60000)
         serverTTT.initializeBoards()
-        serverScenes.initSceneMap()
+        serverScenes.initSceneMaps()
     } catch (error) {
         console.error('Server failed to start.')
         console.log(error)
