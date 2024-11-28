@@ -14,8 +14,13 @@ To get started with this project, you'll need to install the necessary dependenc
 3. **Install dependancies** <br />
     In the directory terminal:
     ```bash
+    npm ci
+    ```
+    OR
+    ```bash
     npm install
     ```
+
 
 ## Getting Started
 
