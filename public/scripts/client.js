@@ -178,6 +178,14 @@ function onMouseClick(event) {
     const intersectsFloors = raycaster.intersectObjects(floors.children)
 
     if (intersectsTransitions.length > 0) {
+        const onClickGame = intersectsTransitions[0].object.userData.transition
+
+        if (onClickGame == "loadTypeRacer") {
+            Typing.showTypingOptions()
+        } else if (onClickGame == "loadTicTacToe") {
+            TicTacToe.showBoards()
+        }
+
         console.log(intersectsTransitions[0].object.userData.transition)
         console.log("this needs to get the onclick stored in each transitions object and emit it as an event that corrctly loads this socket into that map")
         return
@@ -307,10 +315,10 @@ const toolbarInputs = {
         camera.rotation.y = 0
         camera.rotation.z = 0
     },
-    '5': () => {
+    '[': () => {
         TicTacToe.showBoards()
     },
-    '6': () => {
+    ']': () => {
         Typing.showTypingOptions()
     },
     '-': () => {
