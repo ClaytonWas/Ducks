@@ -22,9 +22,9 @@ const world = require('./scenes/gameroomScene.json')
 const playersInServer = new Map()
 
 // Tic Tac Toe Game globals
-const boardStatuses = new Map()
-const boards = new Map()
-const playerToBoard = new Map()
+const boardStatuses = new Map() // Map's a board to it's current description
+const boards = new Map() // Map's a board to a maximum of 2 players
+const playerToBoard = new Map() // Map's a player to board
 
 // Default Time
 let worldDateTime = new Date(1999, 1, 1, 9, 10, 0, 0)
@@ -110,6 +110,8 @@ async function getTimeFromAPI() {
 // Functions for Tic-Tac-Toe minigame interactivity
 const serverTTT = {
 
+    // Initialize map based representation of Tic-tac-toe boards and
+    // board statuses on the server
     initializeBoards: () => {
         boards.set('Board 1', [])
         boards.set('Board 2', [])
@@ -122,6 +124,8 @@ const serverTTT = {
         boardStatuses.set('Board 4', {message: 'Join Board', locked: false})
     },
 
+    // Send a newly joined player information on the current statuses of all
+    // Tic-tac-toe boards
     sendPlayerBoardInfo: (socket) => {
 
         boardStatuses.forEach((boardStatus, boardId) => {
@@ -136,6 +140,8 @@ const serverTTT = {
 
     },
 
+    // When two player's have joined a board, emit a message the player's sockets
+    // to allow them to start the game
     startGame: (board, socket) => {
 
         let opponentName = ""
@@ -167,11 +173,14 @@ const serverTTT = {
 
         boardStatus.locked = true
 
+        // Update the board's status for all players
         io.emit('updateBoard', {boardId: boardId, boardMessage: lockBoardMessage})
 
+        // Lock the board for all players on the server
         io.emit('lockBoard', boardId)
     },
 
+    // If an end game condition has been reached, informs each player that the game has ended
     endGameCondition: (socket, endData) => {
         const boardId = playerToBoard.get(socket)
 
@@ -189,6 +198,8 @@ const serverTTT = {
 
             board.forEach(playerSocket => {
 
+                // Tell's the winning player to color the markers in their winning cell streak green,
+                // and tell's their opponent to color them red
                 if (endData.message == 'socketWon') {
                     if (playerSocket == socket) {
                         playerSocket.emit('endGame', {tieGame: false, message: endMessage, winCombo: endData.winCombo, comboColor: 'green'})
@@ -204,19 +215,22 @@ const serverTTT = {
 
     },
 
+    // Add client socket to the map representaion of the game boards
     joinBoard: (socket, boardId) => {
         
+        // Only allow's the requesting to join the board if it contains less than 2 players
         if (boards.get(boardId).length < 2) {
             boards.get(boardId).push(socket)
             playerToBoard.set(socket, boardId)
 
+            // The first player in the board is assinged the X marker
             if (boards.get(boardId).length < 2) {
                 response = {
                     isSpace: true,
                     marker: 'X'
                 }
             }
-            else {
+            else { // The second player in the board is assigned the O marker
                 response = {
                     isSpace: true,
                     marker: 'O'
@@ -226,11 +240,12 @@ const serverTTT = {
             socket.emit('joinBoardResponse', response)
 
             console.log(`${socket.user.username} joined board ${boardId} with assigned marker ${response.marker}`)
-
+            
+            // Trigger the start of the game if there are two players at the board
             if (boards.get(boardId).length == 2) {
                 console.log('Enough players on', boardId, 'to start game')
                 serverTTT.startGame(boards.get(boardId), socket)
-            } else {
+            } else { // If there is only one player at the board, update status message of the board to reflect that
                 const boardMessage = `${socket.user.username} is waiting for an opponent`
 
                 const boardStatus = boardStatuses.get(boardId)
@@ -250,6 +265,7 @@ const serverTTT = {
         }
     },
 
+    // Removes client socket from it's associated Tic-tac-toe maps 
     leaveBoard: (socket, inGame) => {
         const boardId = playerToBoard.get(socket)
 
@@ -263,6 +279,7 @@ const serverTTT = {
 
             console.log(`${socket.user.username} left board ${boardId}`)
 
+            // If the client socket left a game in progress, inform their opponent that they have won by forfeit
             if (inGame) {
                 board.forEach(playerSocket => {
                     if (playerSocket != socket) {
@@ -272,6 +289,7 @@ const serverTTT = {
                 })
             }
 
+            // If a board is empty, emit message to unlock it for all sockets on the server
             if (boards.get(boardId).length == 0) {
 
                 console.log('Board is now empty')
@@ -290,6 +308,7 @@ const serverTTT = {
 
     },
 
+    // Transmit a move a client socket has made to their opponent
     transmitMove: (socket, moveData) => {
 
         const boardId = playerToBoard.get(socket)

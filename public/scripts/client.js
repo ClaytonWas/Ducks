@@ -71,11 +71,13 @@ socket.on('welcome', (message) => {
 
 //TicTacToe mini-game methods
 
+// On click of a game board square, ask server to join that board
 function joinTTTBoard (boardId) {
     socket.emit('joinBoard', boardId)
 
     socket.on('joinBoardResponse', (response) => {
 
+        // If there is space on the board, display it and start the game loop
         if (response.isSpace) {
             TicTacToe.hideBoards()
             TTTGameLoop(response.marker)
@@ -85,6 +87,8 @@ function joinTTTBoard (boardId) {
 
 window.joinTTTBoard = joinTTTBoard;
 
+// On click of a game board's "Leave Game Board" button, inform server that the
+// client has left the board
 function leaveTTTBoard () {
     socket.emit('leaveBoard', inTTTGame)
 
@@ -93,19 +97,23 @@ function leaveTTTBoard () {
 
 window.leaveTTTBoard = leaveTTTBoard;
 
+// Tic-tac-toe game function
 function TTTGameLoop(marker) {
 
+    // Instantiate TicTacToe game object
     let tttGame = new TicTacToe(socket)
 
     tttGame.setMarker(marker)
-    tttGame.generateBoard()
-    TicTacToe.showBoard()
-    tttGame.disableCellClicks()
+    tttGame.generateBoard() // Generate cells on the board
+    TicTacToe.showBoard() // Display board
+    tttGame.disableCellClicks() // Disable the ability to click on cell's until game begins
 
     tttGame.setGameInfoMessage('Waiting for opponent')
 
     console.log('Socket marker is ', tttGame.marker)
 
+    // Upon message from server, begin game
+    // Player with Marker 'X' gets the first turn
     socket.on('startGame', (opponentName) => {
 
         inTTTGame = true
@@ -121,15 +129,20 @@ function TTTGameLoop(marker) {
         }
     })
 
+    // Update board based on opponent's move
     socket.on('opponentMove', (moveData) => {
         tttGame.oppentCheckCell(moveData)
     })
 
+    // If opponent has forfeited, disable board interactivity and add winning message
     socket.on('opponentLeft', (leaveMessage) => {
+        inTTTGame = false
         tttGame.disableCellClicks()
         tttGame.setGameInfoMessage(leaveMessage)
     })
 
+    // If the game has ended in a victory for either player or a tie, disable board
+    // interactivity and add the end game message
     socket.on('endGame', (endGameData) => {
 
         inTTTGame = false
@@ -535,14 +548,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     })
 
+    // Update a board's description
     socket.on('updateBoard', (updateData) => {
         TicTacToe.updateBoardDescription(updateData)
     })
 
+    // Lock a board to prevent the client attempting to join it
     socket.on('lockBoard', (boardId) => {
         TicTacToe.lockBoard(boardId)
     })
 
+    // Unlock a board to renable the ability for the client to join it
     socket.on('unlockBoard', (boardId) => {
         console.log('Unlocking board ', boardId)
         TicTacToe.unlockBoard(boardId)

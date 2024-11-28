@@ -1,3 +1,4 @@
+// Import priorityQueue class for use in aStar algorithm
 import priorityQueue from './priorityQueue.js'
 
 export default class Movement {
@@ -28,10 +29,6 @@ export default class Movement {
         
         // A* parameters
         this.closeEnoughDistance = 0.25; // Distance considered "arrived" at destination
-        
-        // Optional: Movement state tracking
-        this.currentMovements = new Map(); // Track ongoing movements by playerId
-        this.isMoving = new Map(); // Track if each player is currently moving
     }
 
     //Update playersInScene dictionary
@@ -163,8 +160,6 @@ export default class Movement {
         // Set up the raycaster with the start position and direction
         this.raycaster.set(new THREE.Vector3(start.x, start.y, start.z), direction);
 
-        //console.log(raycaster)
-        
         // Calculate the distance between start and end
         const distance = this.euclidean_distance(start, end)
 
@@ -176,19 +171,11 @@ export default class Movement {
             }
         });
 
-        //console.log(meshes)
-
         // Perform raycasting to detect intersections
         const intersects = this.raycaster.intersectObjects(meshes, true);
         
-        //console.log('Intersection objects: ', intersects)
-
         // Filter intersections to only those within the range of the start to end line
         const filteredIntersects = intersects.filter(intersect => intersect.distance <= distance);
-
-        //console.log('Filtered intersection objects ', filteredIntersects)
-
-        //console.log(filteredIntersects.length > 0)
 
         // Return true if there are any objects detected, false otherwise
         return filteredIntersects.length > 0
@@ -203,13 +190,9 @@ export default class Movement {
         
         // Set up the raycaster with the start position and direction
         this.raycaster.set(new THREE.Vector3(start.x, start.y, start.z), direction);
-
-        //console.log(this.raycaster)
-        
+   
         // Calculate the distance between start and end
         const distance = this.euclidean_distance(start, end)
-
-        //console.log('Impassable objects', this.objects)
 
         // Collect all meshes in an array for raycasting
         const meshes = [];
@@ -219,57 +202,52 @@ export default class Movement {
             }
         });
 
-        //console.log(meshes)
-
         // Perform raycasting to detect intersections
         const intersects = this.raycaster.intersectObjects(meshes, true);
         
-        //console.log('Intersection objects: ', intersects)
-
         // Filter intersections to only those within the range of the start to end line
         const filteredIntersects = intersects.filter(intersect => intersect.distance <= distance);
-
-        //console.log('Filtered intersection objects ', filteredIntersects)
-
-        //console.log(filteredIntersects.length > 0)
 
         // Return true if there are any objects detected, false otherwise
         return [filteredIntersects.length > 0, filteredIntersects];
     }
     
-    //Astar pathfining method
+    //Astar pathfining method - combines greedy and heuristic search to
+    //chart a path around obstacles
     #aStarSearch(startPoint, destPoint) {
 
+        // Helper function to calculate movement cost
         const movementCost = (currCost, currPoint, destPoint) => {
             return currCost + this.euclidean_distance(currPoint, destPoint)
         }
 
+        // Helper function to convert a point to a string for use in the priority queue
         function pointToString(point) {
             return `${point.x},${point.y},${point.z}`;
         }
     
         let frontier = new priorityQueue()
-    
+        
+        // Add initial point to the priority queue
         frontier.add(startPoint, 0)
         
+        // Map's a point to it's immediate predecessor
         let cameFrom = new Map()
+
+        // Map's a point to the cost it takes to get to it
         let costSoFar = new Map()
-    
+        
         cameFrom.set(startPoint, null)
         costSoFar.set(pointToString(startPoint), 0);
-    
-        let count = 0
     
         while (frontier.peek() != null) {
     
             let currNode = frontier.remove()
     
             let currPoint = currNode[0]
-    
-            //let currPriority = currNode[1]
-    
-            count += 1
-    
+            
+            // Exit conditon is if minimal space remains between the current point or destination, 
+            // or if there are no obstacles in a straight line path from the current point to the destination
             if ((this.euclidean_distance(currPoint, destPoint) <= 0.25) || (!this.#detectObstaclesBool(startPoint, destPoint))) {
                 var destPointApprox = currPoint
                 //console.log('Path found')
@@ -296,18 +274,20 @@ export default class Movement {
     
         let path = []
         let curr = destPointApprox
-    
+        
+        // Construct the path from the destination to the begining
         while (curr != null) {
             path.push(curr)
             curr = cameFrom.get(curr)
         }
-    
+        
+        // Reverse the path to put it the correct order
         path.reverse()
     
         return path
     }
 
-
+    // Function move's the player in a straight line to the destination point
     async linearMovementConstant(playerId, targetPoint, speed = this.defaultSpeed) {
         return new Promise((resolve) => {
             if (!this.playersInScene[playerId]) {
@@ -359,6 +339,7 @@ export default class Movement {
         });
     }
 
+    // Function move's the player along a path created by the aStar algorithm
     async followPathOnlyConstant(playerId, path, speed = this.defaultSpeed) {
         return new Promise((resolve) => {
             if (!this.playersInScene[playerId]) {
@@ -427,6 +408,8 @@ export default class Movement {
         });
     }
 
+    // Get's the point before a player would intersect with an object if they were
+    // walk along a straight line path
     #getPointBeforeIntersection(startPoint, intersectionPoint, bufferDistance = this.bufferDistance) {
         // Calculate the direction vector from startPoint to intersectionPoint
         const direction = new THREE.Vector3(
@@ -445,15 +428,17 @@ export default class Movement {
         return pointBeforeIntersection;
     }
 
+    // This function governs player movement
+    // If the destination point lies along an unobstructed straight line from
+    // the player's current positon, linear movement will be used for movement
+    // If an obstacle lies between a player and the destination, a mixture of 
+    // movement along an aStar path and linear movement will be used
     async masterMovement(playerId, startPoint, destPoint) {
+
+        //Check if an obstacle lies between the player and destination point
         let [intersectsFlag, intersectObjects] = this.#detectObstacles(startPoint, destPoint);
 
         destPoint.y += 0.5
-    
-        //console.log('Intersects flag is ', intersectsFlag);
-        //console.log('Starting point is ', startPoint);
-        //console.log('Destination point is ', destPoint);
-        //console.log('Euclidean distance between the points is ', this.euclidean_distance(startPoint, destPoint));
     
         if (intersectsFlag) {
             const intersectionPoint = intersectObjects[0].point;
