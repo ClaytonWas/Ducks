@@ -32,3 +32,13 @@ describe('POST /login', () => {
         expect(response.text).toContain('token')
     })
 })
+
+describe('POST /register', () => {
+    it('should respond with a 201 status and add the account to the database', async () => {
+        const registerableAccount = {username: 'george1234', password: 'foobar', shape: 'cone', color: '#aaaaaa'}
+        const response = await request(app).post('/register')
+        .send(registerableAccount)
+        expect(response.status).toBe(201)
+        expect(response.body.message).toBe('Account Successfully Created.')
+    })
+})
