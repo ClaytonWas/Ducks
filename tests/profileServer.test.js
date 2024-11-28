@@ -33,6 +33,23 @@ describe('POST /login', () => {
     })
 })
 
+describe('GET /logout', () => {
+    it('should respond with a redirect to /', async () => {
+        const response = await request(app).get('/logout')
+        expect(response.text).toBe('Found. Redirecting to /')
+        expect(response.redirect).toBe(true)
+    })
+})
+
+describe('POST /join', () => {
+    it('should respond with a redirect to /login', async () => {
+        const response = await request(app).get('/join')
+        expect(response.text).toBe('Found. Redirecting to /login')
+        expect(response.redirect).toBe(true)
+        // To get the condition where a user is logged in a joins working I need to simulate a req.session.user
+    })
+})
+
 describe('POST /register', () => {
     it('should respond with a 201 status and add the account to the database', async () => {
         const registerableAccount = {username: 'george1234', password: 'foobar', shape: 'cone', color: '#aaaaaa'}

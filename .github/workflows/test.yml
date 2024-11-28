@@ -28,8 +28,3 @@ jobs:
       # Run tests
       - name: Run tests
         run: npm test
-
-      - name: Start the game server
-        run: node gameServer.js &
-        env:
-          NODE_ENV: test
