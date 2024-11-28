@@ -432,41 +432,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             let Material = new THREE.MeshStandardMaterial({ color: transition.color })
 
-
+            
             if (transition.material) {
-                if (/\.(gif)$/i.test(transition.material)) {
-                    const gifUrl = `${host}/textures/${transition.material}`
-                    
-                    const videoTexture = new THREE.VideoTexture(gifUrl)
-                    videoTexture.minFilter = THREE.LinearFilter;
-                    videoTexture.magFilter = THREE.LinearFilter;
-                    videoTexture.format = THREE.RGBFormat;
-
-                    Material = new THREE.MeshStandardMaterial({ map: videoTexture })
-                    console.log(videoTexture)
-                    
-                    let Mesh = new THREE.Mesh(Geometry, Material)
-                    Mesh.position.set(transition.position.x, transition.position.y, transition.position.z)
-                    Mesh.rotation.set(transition.rotation.x, transition.rotation.y, transition.rotation.z)
-                    Mesh.userData.transition = transition.onClick            
-                    transitions.add(Mesh)
-                } else {
-                    textureLoader.load(
-                        `${host}/textures/${transition.material}`, 
-                        (texture) => {
-                            Material = new THREE.MeshStandardMaterial({ map: texture })
-                            console.log(`${transition.material} loaded.`)
-                            let Mesh = new THREE.Mesh(Geometry, Material)
-                            Mesh.position.set(transition.position.x, transition.position.y, transition.position.z)
-                            Mesh.rotation.set(transition.rotation.x, transition.rotation.y, transition.rotation.z)
-                            Mesh.userData.transition = transition.onClick            
-                            transitions.add(Mesh)
-                        },
-                        (error) => { 
-                            console.log(`Could not find ${transition.material} in texture set.`) 
-                        }
-                    )
-                }
+                textureLoader.load(
+                    `${host}/textures/${transition.material}`, 
+                    (texture) => {
+                        Material = new THREE.MeshStandardMaterial({ map: texture })
+                        console.log(`${transition.material} loaded.`)
+                        let Mesh = new THREE.Mesh(Geometry, Material)
+                        Mesh.position.set(transition.position.x, transition.position.y, transition.position.z)
+                        Mesh.rotation.set(transition.rotation.x, transition.rotation.y, transition.rotation.z)
+                        Mesh.userData.transition = transition.onClick            
+                        transitions.add(Mesh)
+                    },
+                    (error) => { 
+                        console.log(`Could not find ${transition.material} in texture set.`) 
+                    }
+                )
             } else {
                 // If no material is provided, use the default colour
                 let Mesh = new THREE.Mesh(Geometry, Material)
