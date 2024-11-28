@@ -22,12 +22,12 @@ To get started with this project, you'll need to install the necessary dependenc
 1. **Instance database** <br />
     In the directory terminal:
     ```bash
-    sqlite3 ./db/accounts.db < ./db/schema.sql
+    node ./db/dbs.js
     ```
     This instantiates a database with two template users.
-    | username    | password |
-    | -------- | ------- |
-    | clay  | foobar    |
+    | username    | password | salt | hash | shape | color | created_at |
+    | -------- | ------- | ------- | ------- | ------- | ------- | ------- | 
+    | clay  | foobar    | $2b$10$Tpc0EjrF2TegTwUUB7MP5e | $2b$10$Tpc0EjrF2TegTwUUB7MP5eSHZ4M/Knq3FrMDRzpyhiTdpDe5jS8Y2 | sphere | #613583 | 2024-12-25 09:15:00 |
     | parsa | foobar     |
 
 
