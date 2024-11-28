@@ -191,16 +191,16 @@ function onMouseClick(event) {
     const intersectsFloors = raycaster.intersectObjects(floors.children)
 
     if (intersectsTransitions.length > 0) {
-        const onClickGame = intersectsTransitions[0].object.userData.transition
+        const onClick = intersectsTransitions[0].object.userData.transition
 
-        if (onClickGame == "loadTypeRacer") {
+        // For Client Side On-Clicks
+        if (onClick == "loadTypeRacer") {
             Typing.showTypingOptions()
-        } else if (onClickGame == "loadTicTacToe") {
+        } else if (onClick == "loadTicTacToe") {
             TicTacToe.showBoards()
+        } else {
+            socket.emit(onClick)
         }
-
-        console.log(intersectsTransitions[0].object.userData.transition)
-        console.log("this needs to get the onclick stored in each transitions object and emit it as an event that corrctly loads this socket into that map")
         return
     }
 
@@ -445,6 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             let Material = new THREE.MeshStandardMaterial({ color: transition.color })
 
+            
             if (transition.material) {
                 textureLoader.load(
                     `${host}/textures/${transition.material}`, 
@@ -474,6 +475,10 @@ document.addEventListener('DOMContentLoaded', () => {
         scene.add(floors)
         scene.add(objects)
         scene.add(transitions)
+
+        // Reinitalize playersInScene and movementSystem
+        playersInScene = {}
+        movementSystem.updateSceneAndPlayers(scene, playersInScene)
     })
 
     socket.on('sendWorldTime', (date) => {
@@ -495,6 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('sendPlayerData', (player) => {
         instantiatePlayer(player.id, player.username, player.shape, player.color, player.position)
+        console.log(`${player.username} added to my scene`)
     })
 
     // Client-Side Message Sent To Game Server

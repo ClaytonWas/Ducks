@@ -145,6 +145,16 @@
             "color": "#ab8888",
             "onClick": "loadTicTacToe",
             "material": "tictactoe.png"
+        },
+        {
+            "id": 14,
+            "type": "box",
+            "geometry": { "width": 2, "height": 4, "depth": 0.2 },
+            "position": { "x": 0, "y": 2, "z": 0 },
+            "rotation": { "x": 0, "y": 0, "z": 0 },
+            "color": "#ab8888",
+            "onClick": "testScene1",
+            "material": "transitiondoor1.png"
         }
     ]
 }
