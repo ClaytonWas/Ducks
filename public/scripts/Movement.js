@@ -447,6 +447,8 @@ export default class Movement {
 
     async masterMovement(playerId, startPoint, destPoint) {
         let [intersectsFlag, intersectObjects] = this.#detectObstacles(startPoint, destPoint);
+
+        destPoint.y += 0.5
     
         //console.log('Intersects flag is ', intersectsFlag);
         //console.log('Starting point is ', startPoint);

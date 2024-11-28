@@ -139,17 +139,8 @@
         {
             "id": 13,
             "type": "box",
-            "geometry": { "width": 2, "height": 0.5, "depth": 2 },
-            "position": { "x": -7, "y": 0.25, "z": -15 },
-            "rotation": { "x": 0, "y": 0, "z": 0 },
-            "color": "#ab8eff",
-            "onClick": "loadTicTacToe"
-        },
-        {
-            "id": 13,
-            "type": "box",
-            "geometry": { "width": 1.75, "height": 0.05, "depth": 1.75 },
-            "position": { "x": -7, "y": 0.5, "z": -15 },
+            "geometry": { "width": 5, "height": 5, "depth": 0.5 },
+            "position": { "x": -7, "y": 2.5, "z": -15 },
             "rotation": { "x": 0, "y": 0, "z": 0 },
             "color": "#ab8888",
             "onClick": "loadTicTacToe",

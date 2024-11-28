@@ -4,7 +4,7 @@ class Player {
       this.name = name; // username
       this.color = new THREE.Color(color); // temporarily using coloured capsules as models
       this.x = x; // current scene x position
-      this.y = y; // current scene y position
+      this.y = y + 0.5; // current scene y position
       this.z = z;
 
       if (shape === 'cube') {
@@ -16,7 +16,7 @@ class Player {
       } 
       this.material = new THREE.MeshBasicMaterial( { color: color } );
       this.mesh = new THREE.Mesh(this.geometry, this.material);
-      this.mesh.position.set(this.x, this.y + 0.5, this.z) 
+      this.mesh.position.set(this.x, this.y, this.z) 
     }
 
     // Method to move the player

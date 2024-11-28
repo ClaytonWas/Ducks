@@ -329,39 +329,39 @@ const toolbarInputs = {
         console.log('Increasing Sunlight Intensity')
         directionalLight.intensity += 0.1
     },
-    'w': () => {
+    'ArrowUp': () => {
         console.log('Moving Camera')
         camera.position.z -= 0.5
     },
-    's': () => {
+    'ArrowDown': () => {
         console.log('Moving Camera')
         camera.position.z += 0.5
     },
-    'a': () => {
+    'ArrowLeft': () => {
         console.log('Moving Camera')
         camera.position.x -= 0.5
     },
-    'd': () => {
+    'ArrowRight': () => {
         console.log('Moving Camera')
         camera.position.x += 0.5
     },
-    'q': () => {
+    'Tab': () => {
         console.log('Moving Camera')
         camera.position.y -= 0.5
     },
-    'e': () => {
+    '`': () => {
         console.log('Moving Camera')
         camera.position.y += 0.5
     },
-    'z': () => {
+    '7': () => {
         console.log('Rotating Camera')
         camera.rotation.x += Math.PI/6
     },
-    'x': () => {
+    '8': () => {
         console.log('Rotating Camera')
         camera.rotation.y += Math.PI/6
     },
-    'c': () => {
+    '9': () => {
         console.log('Rotating Camera')
         camera.rotation.z += Math.PI/6
     }
