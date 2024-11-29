@@ -50,7 +50,7 @@ To get started with this project, you'll need to install the necessary dependenc
     Currently localhost:3000/
 
 ## Implementation
-[Architecture Diagram](DucksDiagrams.png)
+![Architecture Diagram](./DucksDiagram.png)
 
 ## TODO:
 Systems Testing
