@@ -49,9 +49,10 @@ To get started with this project, you'll need to install the necessary dependenc
 3. **Navigate to host** <br /> 
     Currently localhost:3000/
 
+## Implementation
+[Architecture Diagram](DucksDiagrams.png)
 
-
-# TODO:
+## TODO:
 Systems Testing
 
 UML diagrams
