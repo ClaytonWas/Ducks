@@ -9,6 +9,7 @@
 const express = require('express')
 const session = require('express-session')
 const sqlite3 = require('sqlite3').verbose()
+//const sqlite3 = require('better-sqlite3').verbose()
 const bcrypt = require('bcrypt')
 const path = require('path')
 const jsonWebToken = require('jsonwebtoken')
@@ -24,13 +25,13 @@ const secretKey = 'runescapefan'         // Secret key for signing session token
 
 // EJS view engine for dynamic HTML updates
 app.set('view engine', 'ejs')
-app.set('views', './views')
+app.set('views', path.join(__dirname, 'views'))
 
 
 
 // SQLite database interaction functions.
 // Reads the accounts.db.
-const db = new sqlite3.Database(path.join(__dirname, 'db/accounts.db'), (error) => {
+const db = new sqlite3.Database(path.join(__dirname, './db/accounts.db'), (error) => {
     if (error) {
         return console.error(error.message)
     }
@@ -41,20 +42,20 @@ const db = new sqlite3.Database(path.join(__dirname, 'db/accounts.db'), (error) 
 // Express middleware for parsing json, serving website views, and managing sessions
 app.use(express.urlencoded({extended: true}))
 app.use(express.json())
-app.use(express.static(path.join(__dirname, 'public')))
+app.use(express.static(path.join(__dirname, './public')))
 app.use(session({secret: secretKey, resave: false, saveUninitialized: false}))
 
 
 
 // HTTP Methods
-// GET route for the home page
+// GET route for the home
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'index.html'))
+    res.sendFile(path.join(__dirname, './views', 'index.html'))
 })
 
 // GET route for the login page
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'login.html'))
+    res.sendFile(path.join(__dirname, './views', 'login.html'))
 })
 
 // POST route for login
@@ -157,7 +158,7 @@ app.get('/logout', (req, res) => {
 // GET route for joining the game world
 app.get('/join', (req, res) => {
     if (req.session.user) {
-        res.sendFile(path.join(__dirname, 'views', 'world.html'))
+        res.sendFile(path.join(__dirname, './views', 'world.html'))
     } else {
         req.session.error = 'Access denied! Please log in.'
         res.redirect('/login');

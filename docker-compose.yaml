@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: ./server
+    ports:
+      - "3030:3030"
+    volumes:
+      - ./server:/server:delegated
+      - /server/node_modules
+
+  client:
+    build:
+      context: ./client
+    ports:
+      - "3000:3000"
+    volumes:
+       - ./client:/client:delegated
+       - /client/node_modules
+    depends_on:
+      - server
+
+volumes:
+  accounts_db:
+    driver: local
+

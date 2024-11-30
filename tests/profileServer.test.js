@@ -1,14 +1,14 @@
 const request = require('supertest')
 const fs = require('fs')
 const path = require('path')
-const app = require('../profileServer.js')
+const app = require('../client/profileServer.js')
 
 describe('GET /', () => {
     it('should respond with a 200 status and index.html', async () => {
         const response = await request(app).get('/')
         expect(response.status).toBe(200)
         
-        let htmlContent = fs.readFileSync(path.join(__dirname, '../views/index.html'), 'utf-8')
+        let htmlContent = fs.readFileSync(path.join(__dirname, '../client/views', 'index.html'), 'utf-8')
         expect(response.text).toBe(htmlContent)
     })
 })
@@ -18,7 +18,7 @@ describe('GET /login', () => {
         const response = await request(app).get('/login')
         expect(response.status).toBe(200)
         
-        let htmlContent = fs.readFileSync(path.join(__dirname, '../views/login.html'), 'utf-8')
+        let htmlContent = fs.readFileSync(path.join(__dirname, '../client/views', 'login.html'), 'utf-8')
         expect(response.text).toBe(htmlContent)
     })
 })

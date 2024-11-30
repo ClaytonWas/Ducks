@@ -3,8 +3,6 @@ const http = require('http')
 const { Server } = require('socket.io')
 const cors = require('cors')
 const jsonWebToken = require('jsonwebtoken')
-const { posix } = require('path')
-const { emit, resourceUsage, config } = require('process')
 const path = require('path')
 const fs = require('fs')
 
@@ -55,11 +53,13 @@ app.use(cors({
     methods: ["GET", "POST"],
     credentials: true
 }))
-app.use(express.static(path.join(__dirname, 'public')))
+
+
+app.use(express.static(path.join(__dirname)))
 
 // Loading textures to port 3030
 app.get('/textures', (req, res) => {
-    const texturesPath = path.join(__dirname, 'public', 'textures')
+    const texturesPath = path.join(__dirname, './textures')
 
     fs.readdir(texturesPath, (error, files) => {
         if (error) {
