@@ -1,3 +1,5 @@
+// Theory and psuedo code of aStar algorithm: https://www.redblobgames.com/pathfinding/a-star/introduction.html
+
 // Import priorityQueue class for use in aStar algorithm
 import priorityQueue from './priorityQueue.js'
 

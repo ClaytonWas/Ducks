@@ -27,7 +27,7 @@ To get started with this project, you'll need to install the necessary dependenc
 1. **Instance database** <br />
     In the directory terminal:
     ```bash
-    node ./db/dbs.js
+    node ./client/db/dbs.js
     ```
     This instantiates a database with two template users.
     | username    | password | salt | hash | shape | color | created_at |
@@ -39,22 +39,64 @@ To get started with this project, you'll need to install the necessary dependenc
 2. **Run the server** <br />
     In directory terminal 1:
     ```bash
-    node profileServer.js
+    node ./client/profileServer.js
     ```
     In directory terminal 2:
     ```bash
-    node gameServer.js
+    node ./server/gameServer.js
     ```
 
 3. **Navigate to host** <br /> 
-    Currently localhost:3000/
+    Currently set to localhost:3000/
+
+## Run from Docker Container
+
+1. **Docker Setup** <br />
+
+    Set up Docker for your operating system: https://docs.docker.com/get-started/get-docker/
+
+2. **Create container** <br />
+
+    In the root directory terminal, run the following command to build the services defined in docker-compose.yaml
+    ```bash
+    docker-compose build
+    ```
+
+3. **Start and Stop Services** <br />
+
+    To start the containers, run the command
+    ```bash
+    docker-compose up
+    ```
+    And navigate to localhost:3000/
+
+    Top stop the containers, press crtl + c
+
+    Alternatively, run and stop the containers from the Docker Desktop client
 
 ## Implementation
-![Architecture Diagram](./DucksDiagram.png)
+![Architecture Diagram](./readmeImages/DucksDiagram.png)
 
-## TODO:
-Systems Testing
+## Performance
 
-UML diagrams
+Performace for 4 players on Server, taken using Google Lighthouse
+![Architecture Diagram](./readmeImages/lighthouse_performance.png)
 
-Dockerization
+
+## Code Sources
+
+    For template code used in priorityQueue.js,
+
+    https://www.geeksforgeeks.org/implementation-priority-queue-javascript/
+
+    For the theory and psuedo-code template of the aStar algorithm implemented in movement.js,
+
+    https://www.redblobgames.com/pathfinding/a-star/introduction.html
+
+    For the template code for the TicTacToe minigame,
+
+    https://www.geeksforgeeks.org/simple-tic-tac-toe-game-using-javascript/
+
+    For the template code for the Typing minigame,
+
+    https://github.com/WebDevSimplified/JS-Speed-Typing-Game

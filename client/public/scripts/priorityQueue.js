@@ -1,4 +1,4 @@
-// Code taken from https://www.geeksforgeeks.org/implementation-priority-queue-javascript/
+// Code adapted from https://www.geeksforgeeks.org/implementation-priority-queue-javascript/
 export default class PriorityQueue {
     constructor() {
         this.heap = [];
