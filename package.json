@@ -20,7 +20,7 @@
   "main": "server.js",
   "scripts": {
     "test": "node ./db/dbs.js && jest",
-    "start": "node profileServer.js"
+    "start": "node ./client/profileServer.js"
   },
   "author": "",
   "license": "ISC",

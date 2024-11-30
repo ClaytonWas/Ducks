@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+*.log
+.dockerignore
+.git
+.gitignore
+.DS_Store
+Thumbs.db
+.env
+temp/
+cache/
