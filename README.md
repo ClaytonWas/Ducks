@@ -74,6 +74,12 @@ To get started with this project, you'll need to install the necessary dependenc
 
     Alternatively, run and stop the containers from the Docker Desktop client
 
+## Testing
+To run test suite.
+```bash
+npm test
+```
+
 ## Implementation
 ![Architecture Diagram](./readmeImages/DucksDiagram.png)
 
