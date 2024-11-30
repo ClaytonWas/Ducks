@@ -67,7 +67,7 @@ app.get('/textures', (req, res) => {
             return res.status(500).json({ error: 'Unable to load textures.' })
         }
 
-        const textures = files.filter(file => /\.(png|jpg|jpeg|gif)$/i.test(file));
+        const textures = files.filter(file => /\.(png|jpg|jpeg|webp|gif)$/i.test(file))
         res.json(textures)
     })
 })

@@ -433,10 +433,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 var Geometry = new THREE.BoxGeometry(object.geometry.width, object.geometry.height, object.geometry.depth)
             }
             let Material = new THREE.MeshStandardMaterial({ color: object.color })
-            let Mesh = new THREE.Mesh(Geometry, Material)
-            Mesh.position.set(object.position.x, object.position.y, object.position.z)
-            Mesh.rotation.set(object.rotation.x, object.rotation.y, object.rotation.z)
-            objects.add(Mesh)
+
+            if (object.material) {
+                textureLoader.load(
+                    `${host}/textures/${object.material}`, 
+                    (texture) => {
+                        Material = new THREE.MeshStandardMaterial({ map: texture })
+                        console.log(`${object.material} loaded.`)
+                        let Mesh = new THREE.Mesh(Geometry, Material)
+                        Mesh.position.set(object.position.x, object.position.y, object.position.z)
+                        Mesh.rotation.set(object.rotation.x, object.rotation.y, object.rotation.z)
+                        objects.add(Mesh)
+                    },
+                    (error) => { 
+                        console.log(`Could not find ${object.material} in texture set.`) 
+                    }
+                )
+            } else {
+                // If no material is provided, use the default colour
+                let Mesh = new THREE.Mesh(Geometry, Material)
+                Mesh.position.set(object.position.x, object.position.y, object.position.z)
+                Mesh.rotation.set(object.rotation.x, object.rotation.y, object.rotation.z)
+                objects.add(Mesh)
+            }
         })
 
         transitionsData.forEach(transition => {

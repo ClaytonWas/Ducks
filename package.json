@@ -19,7 +19,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "test": "node ./root_db/dbs.js && jest",
+    "test": "node ./root_db/dbs.js && jest --detectOpenHandles",
     "start": "node ./client/profileServer.js"
   },
   "author": "",

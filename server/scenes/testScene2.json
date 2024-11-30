@@ -2,10 +2,19 @@
     "floors": [
         {
             "id": 1,
-            "geometry": { "width": 20, "height": 10},
-            "position": { "x": 0, "y": 0, "z": -10 },
-            "rotation": { "x": -1.5707963267948966, "y": 0, "z": 0 },
-            "color": "#aaaaaa"
+            "geometry": { "width": 10, "height": 10},
+            "position": { "x": 5, "y": 0, "z": -10 },
+            "rotation": { "x": -1.5707963267948966, "y": 0, "z": -1.5707963267948966 },
+            "color": "#aaaaaa",
+            "material": "wooden-planks.webp"
+        },
+        {
+            "id": 2,
+            "geometry": { "width": 10, "height": 10},
+            "position": { "x": -5, "y": 0, "z": -10 },
+            "rotation": { "x": -1.5707963267948966, "y": 0, "z": -1.5707963267948966 },
+            "color": "#aaaaaa",
+            "material": "wooden-planks.webp"
         }
     ],
     "objects": [
@@ -24,6 +33,42 @@
             "position": { "x": -7, "y": 1, "z": -10 },
             "rotation": { "x": 0, "y": 0, "z": 0 },
             "color": "#aa1100"
+        },
+        {
+            "id": 3,
+            "type": "box",
+            "geometry": { "width": 0.1, "height": 5, "depth": 10},
+            "position": { "x": -10, "y": 2.5, "z": -10 },
+            "rotation": { "x": 0, "y": 0, "z": 0 },
+            "color": "#12ABC1",
+            "material": "cobblestone.webp"
+        },
+        {
+            "id": 4,
+            "type": "box",
+            "geometry": { "width": 0.1, "height": 5, "depth": 10},
+            "position": { "x": 10, "y": 2.5, "z": -10 },
+            "rotation": { "x": 0, "y": 0, "z": 0 },
+            "color": "#12ABC1",
+            "material": "cobblestone.webp"
+        },
+        {
+            "id": 5,
+            "type": "box",
+            "geometry": { "width": 0.1, "height": 5, "depth": 10},
+            "position": { "x": -5, "y": 2.5, "z": -15 },
+            "rotation": { "x": 0, "y": 1.5707963268, "z": 0 },
+            "color": "#12ABC1",
+            "material": "cobblestone.webp"
+        },
+        {
+            "id": 6,
+            "type": "box",
+            "geometry": { "width": 0.1, "height": 5, "depth": 10},
+            "position": { "x": 5, "y": 2.5, "z": -15 },
+            "rotation": { "x": 0, "y": 1.5707963268, "z": 0 },
+            "color": "#12ABC1",
+            "material": "cobblestone.webp"
         }
     ],
     "transitions": [
@@ -42,7 +87,7 @@
             "id": 2,
             "type": "box",
             "geometry": { "width": 2, "height": 4, "depth": 0.2 },
-            "position": { "x": -9, "y": 2, "z": -14 },
+            "position": { "x": 8.5, "y": 2, "z": -6.5 },
             "rotation": { "x": 0, "y": 0.7853981634, "z": 0 },
             "color": "#ab8888",
             "onClick": "testScene3",
