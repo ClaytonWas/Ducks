@@ -1,5 +1,7 @@
 # Ducks
 The open world fun fest where you can talk to other players *AND* walk around!
+![Soawnroom Scene](./readmeImages/MultiplayerScreenshot.png)
+
 
 ## Installation
 To get started with this project, you'll need to install the necessary dependencies. Follow these steps:
@@ -109,7 +111,6 @@ Performace for 4 players on Server, taken using Google Lighthouse
 
 ## Screenshots
 
-![Gameroom Scene](./readmeImages/TicTacToeScreenshot.png)
-![Soawnroom Scene](./readmeImages/MultiplayerScreenshot.png)
+![TicTacToe Scene](./readmeImages/TicTacToeScreenshot.png)
 ![Gameroom Scene](./readmeImages/GameroomScreenshot.png)
-![Soawnroom Scene](./readmeImages/SpawnroomScreenshot.png)
+![Spawnroom Scene](./readmeImages/SpawnroomScreenshot.png)
