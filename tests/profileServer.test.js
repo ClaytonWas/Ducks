@@ -52,7 +52,8 @@ describe('POST /join', () => {
 
 describe('POST /register', () => {
     it('should respond with a 201 status and add the account to the database', async () => {
-        const registerableAccount = {username: 'george1234', password: 'foobar', shape: 'cone', color: '#aaaaaa'}
+        const username = Math.random().toString(36).substring(2,7) // random username
+        const registerableAccount = {username: username, password: 'foobar', shape: 'cone', color: '#aaaaaa'}
         const response = await request(app).post('/register')
         .send(registerableAccount)
         expect(response.status).toBe(201)
