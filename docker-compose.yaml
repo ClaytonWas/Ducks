@@ -1,25 +1,39 @@
-version: '3.8'
-
 services:
   server:
     build:
       context: ./server
     ports:
       - "3030:3030"
+    environment:
+      - PORT=3030
+      - GAME_SERVER_PORT=3030
+      - PROFILE_SERVER_URL=${PROFILE_SERVER_URL:-http://localhost:3000}
+      - SECRET_KEY=${SECRET_KEY:-runescapefan}
+      - JWT_SECRET=${JWT_SECRET:-${SECRET_KEY:-runescapefan}}
     volumes:
       - ./server:/server:delegated
       - /server/node_modules
+    restart: unless-stopped
 
   client:
     build:
       context: ./client
     ports:
       - "3000:3000"
+    environment:
+      - PORT=3000
+      - CLIENT_PORT=3000
+      - GAME_SERVER_URL=${GAME_SERVER_URL:-http://localhost:3030}
+      - SECRET_KEY=${SECRET_KEY:-runescapefan}
+      - JWT_SECRET=${JWT_SECRET:-${SECRET_KEY:-runescapefan}}
     volumes:
        - ./client:/client:delegated
        - /client/node_modules
+       - ./client/db:/client/db
     depends_on:
       - server
+    restart: unless-stopped
+    command: sh -c "cd /client && node ./db/dbs.js && node profileServer.js"
 
 volumes:
   accounts_db:

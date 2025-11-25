@@ -3,14 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Restricted Area</title>
-    <link rel="stylesheet" href="/styles/login.css">
-    <link href='https://fonts.googleapis.com/css?family=Inter' rel='stylesheet'> <!-- Inter Font Import From Google API -->
+    <title>Home - Ducks 🐧</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'club-blue': '#87CEEB',
+                        'club-teal': '#4ECDC4',
+                        'club-dark': '#2C5F7C',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+    </style>
 </head>
-<body>
-    <h1>Successful Login Portal</h1>
-    <p>Welcome, <%= username %>!</p>
-    <a href="/join">Join World</a>
-    <a href="/logout">Logout</a>
+<body class="min-h-screen bg-gradient-to-br from-sky-300 via-sky-200 to-blue-300 flex items-center justify-center p-4 relative overflow-hidden">
+    <!-- Decorative penguins -->
+    <div class="absolute top-10 left-10 text-6xl opacity-10 float-animation">🐧</div>
+    <div class="absolute bottom-10 right-10 text-6xl opacity-10 float-animation" style="animation-delay: 1s;">❄️</div>
+    
+    <div class="w-full max-w-md relative z-10">
+        <div class="bg-white/95 backdrop-blur-md rounded-3xl p-10 shadow-2xl border-4 border-sky-200 transform hover:scale-[1.02] transition-transform duration-300">
+            <div class="text-center mb-8">
+                <h1 class="text-5xl font-bold text-club-dark mb-2 float-animation">🐧</h1>
+                <h2 class="text-3xl font-bold text-club-dark mb-2">Welcome Back!</h2>
+                <p class="text-club-dark text-lg">Hello, <strong class="text-club-teal"><%= username %>!</strong> Ready to play?</p>
+            </div>
+            
+            <div class="flex flex-col gap-4">
+                <a href="/join" class="bg-gradient-to-r from-club-teal via-teal-500 to-teal-600 text-white py-4 px-6 rounded-2xl font-bold text-lg hover:from-teal-600 hover:via-teal-500 hover:to-club-teal transform hover:-translate-y-2 hover:scale-105 transition-all shadow-2xl hover:shadow-teal-500/50 text-center">
+                    🎮 Play Game
+                </a>
+                <a href="/settings" class="bg-gradient-to-r from-orange-400 via-orange-500 to-orange-600 text-white py-4 px-6 rounded-2xl font-bold text-lg hover:from-orange-600 hover:via-orange-500 hover:to-orange-400 transform hover:-translate-y-2 hover:scale-105 transition-all shadow-2xl hover:shadow-orange-500/50 text-center">
+                    🎨 Account Settings
+                </a>
+                <a href="/logout" class="bg-gradient-to-r from-sky-200 to-sky-300 text-club-dark py-3 px-6 rounded-2xl font-semibold hover:from-sky-300 hover:to-sky-200 transform hover:-translate-y-1 transition-all shadow-md text-center border-2 border-sky-200">
+                    🚪 Logout
+                </a>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

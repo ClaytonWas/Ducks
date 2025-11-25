@@ -3,44 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <link rel="stylesheet" href="/styles/login.css">
-    <link href='https://fonts.googleapis.com/css?family=Inter' rel='stylesheet'> <!-- Inter Font Import From Google API -->
+    <title>Login - Ducks 🐧</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'club-blue': '#87CEEB',
+                        'club-teal': '#4ECDC4',
+                        'club-dark': '#2C5F7C',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .float-animation {
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: -1000px 0; }
+            100% { background-position: 1000px 0; }
+        }
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            background-size: 1000px 100%;
+            animation: shimmer 3s infinite;
+        }
+    </style>
 </head>
-<body>
-    <script src="/scripts/loginResponseHandler.js"></script>
+<body class="min-h-screen bg-gradient-to-br from-sky-300 via-sky-200 to-blue-300 flex items-center justify-center p-4 relative overflow-hidden">
+    <!-- Decorative penguins -->
+    <div class="absolute top-10 left-10 text-6xl opacity-10 float-animation">🐧</div>
+    <div class="absolute bottom-10 right-10 text-6xl opacity-10 float-animation" style="animation-delay: 1s;">❄️</div>
+    <div class="absolute top-1/2 right-20 text-5xl opacity-10 float-animation" style="animation-delay: 2s;">🐧</div>
 
-    <div class="container">
-        <p id="updateMessage"></p>
-        <div class="card">
-            <h3>Ducks Login Portal</h3> 
-            <form id="form">
-                <div class="formInput">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" placeholder="max 12 characters" maxlength="12" required>
+    <div class="w-full max-w-md relative z-10">
+        <p id="updateMessage" class="mb-4 p-4 rounded-2xl text-center font-semibold hidden shadow-lg"></p>
+        <div class="bg-white/95 backdrop-blur-md rounded-3xl p-10 shadow-2xl border-4 border-sky-200 transform hover:scale-[1.02] transition-transform duration-300 shimmer">
+            <div class="text-center mb-8">
+                <h1 class="text-5xl font-bold text-club-dark mb-2 float-animation">🐧</h1>
+                <h2 class="text-3xl font-bold text-club-dark mb-2">Welcome Back!</h2>
+                <p class="text-club-dark text-lg">Login to continue your adventure</p>
+            </div>
+            
+            <form id="loginForm" class="space-y-5">
+                <div>
+                    <label for="username" class="block text-club-dark font-bold mb-2 text-lg">
+                        👤 Username
+                    </label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        placeholder="Enter your username" 
+                        maxlength="12" 
+                        required 
+                        class="w-full px-5 py-4 rounded-2xl border-3 border-sky-200 focus:border-club-teal focus:outline-none focus:ring-4 focus:ring-club-teal/30 transition-all text-lg shadow-inner bg-white/80 hover:bg-white"
+                    >
                 </div>
-                <div class="formInput">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="max 12 characters" maxlength="12" required>
+                
+                <div>
+                    <label for="password" class="block text-club-dark font-bold mb-2 text-lg">
+                        🔒 Password
+                    </label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        placeholder="Enter your password" 
+                        maxlength="12" 
+                        required 
+                        class="w-full px-5 py-4 rounded-2xl border-3 border-sky-200 focus:border-club-teal focus:outline-none focus:ring-4 focus:ring-club-teal/30 transition-all text-lg shadow-inner bg-white/80 hover:bg-white"
+                    >
                 </div>
-                <div class="formInput">
-                    <label for="shape">Shape</label>
-                    <select id="shape" value="cube">
-                        <option value="cube">Cube</option>
-                        <option value="sphere">Sphere</option>
-                        <option value="cone">Cone</option>
-                    </select>
+                
+                <div class="pt-4">
+                    <button 
+                        type="submit" 
+                        id="loginButton"
+                        class="w-full bg-gradient-to-r from-club-teal via-teal-500 to-teal-600 text-white py-4 px-8 rounded-2xl font-bold text-xl hover:from-teal-600 hover:via-teal-500 hover:to-club-teal transform hover:-translate-y-2 hover:scale-105 transition-all shadow-2xl hover:shadow-teal-500/50"
+                    >
+                        🚀 Login 🚀
+                    </button>
                 </div>
-                <div class="formInput">
-                    <label for="color">Colour</label>
-                    <input type="color" id="color">
-                </div>
-                <div class="formButton">
-                    <button type="button" id="loginButton">Login</button>
-                    <button type="button" id="createAccountButton">Create Account</button>
+                
+                <div class="text-center pt-4">
+                    <a href="/register" class="text-club-dark hover:text-club-teal font-semibold text-lg transition-colors underline decoration-2 underline-offset-4">
+                        Don't have an account? Create one here →
+                    </a>
                 </div>
             </form>
         </div>
     </div>
+    
+    <script src="/scripts/loginHandler.js"></script>
 </body>
 </html>

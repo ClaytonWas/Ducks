@@ -3,14 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="/styles/login.css">
-    <link href='https://fonts.googleapis.com/css?family=Inter' rel='stylesheet'> <!-- Inter Font Import From Google API -->
-    <title>Index</title>
+    <title>Ducks - Welcome! 🐧</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'club-blue': '#87CEEB',
+                        'club-teal': '#4ECDC4',
+                        'club-dark': '#2C5F7C',
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body>
-    <p>Welcome to the Duck Game Index</p>
-    <p>If you're not sure what you are doing here, it's probably because you should be on the login page.</p>
-    <a href="/login">Login</a>
-    <p>This page will be filled with relevant information if I feel it's needed.</p>
+<body class="min-h-screen bg-gradient-to-br from-sky-300 via-sky-200 to-blue-300 flex items-center justify-center p-4 relative overflow-hidden">
+    <!-- Decorative penguins -->
+    <div class="absolute top-10 left-10 text-6xl opacity-10 animate-bounce" style="animation-duration: 3s;">🐧</div>
+    <div class="absolute bottom-10 right-10 text-6xl opacity-10 animate-bounce" style="animation-duration: 4s; animation-delay: 1s;">❄️</div>
+    <div class="absolute top-1/2 right-20 text-5xl opacity-10 animate-bounce" style="animation-duration: 3.5s; animation-delay: 2s;">🐧</div>
+    
+    <div class="w-full max-w-md relative z-10">
+        <div class="bg-white/95 backdrop-blur-md rounded-3xl p-10 shadow-2xl border-4 border-sky-200 transform hover:scale-[1.02] transition-transform duration-300">
+            <h2 class="text-4xl font-bold text-center text-club-dark mb-4">🐧 Welcome to Ducks! 🐧</h2>
+            <p class="text-center text-club-dark mb-8 text-lg leading-relaxed">
+                The open world fun fest where you can talk to other players <strong>AND</strong> walk around!<br><br>
+                Join your friends in an amazing multiplayer adventure!
+            </p>
+            
+            <div class="mb-6 space-y-3">
+                <a href="/login" class="bg-gradient-to-r from-club-teal via-teal-500 to-teal-600 text-white py-4 px-6 rounded-2xl font-bold text-xl hover:from-teal-600 hover:via-teal-500 hover:to-club-teal transform hover:-translate-y-2 hover:scale-105 transition-all shadow-2xl hover:shadow-teal-500/50 text-center block">
+                    🚀 Get Started
+                </a>
+            </div>
+            
+            <div class="text-center space-x-4">
+                <a href="/login" class="text-club-dark hover:text-teal-600 font-semibold transition-colors underline decoration-2 underline-offset-4">
+                    Login
+                </a>
+                <span class="text-club-dark">|</span>
+                <a href="/register" class="text-club-dark hover:text-orange-500 font-semibold transition-colors underline decoration-2 underline-offset-4">
+                    Create Account
+                </a>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

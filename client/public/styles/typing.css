@@ -1,10 +1,15 @@
+/* Club Penguin Style Typing Game */
+
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap');
+
 #typing-interface {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -17,7 +22,8 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -25,58 +31,106 @@
 }
 
 .typing-modal {
-    background: white;
-    padding: 20px;
-    border-radius: 10px;
+    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    padding: 30px;
+    border-radius: 25px;
     text-align: center;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    box-shadow: 
+        0 10px 30px rgba(0, 0, 0, 0.2),
+        0 0 0 4px rgba(135, 206, 235, 0.3);
     max-width: 90%;
     width: 600px;
+    font-family: 'Fredoka', sans-serif;
+}
+
+.typing-modal h2 {
+    color: #2C5F7C;
+    font-size: 28px;
+    margin-bottom: 20px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.typing-modal p {
+    color: #4A90A4;
+    font-size: 16px;
+    margin: 10px 0;
 }
 
 .typing-hidden {
     display: none !important;
 }
 
-.timer
-{
-    color: #5f668b;
+.timer {
+    color: #2C5F7C;
+    font-size: 32px;
+    font-weight: 700;
+    margin: 20px 0;
+    padding: 15px;
+    background: linear-gradient(145deg, #E0F7FA 0%, #B2EBF2 100%);
+    border-radius: 20px;
+    border: 3px solid #B0E0E6;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.quote-display
-{
- 
+.quote-display {
+    font-size: 20px;
+    line-height: 1.6;
+    color: #2C5F7C;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 15px;
+    border: 3px solid #B0E0E6;
+    margin: 20px 0;
+    min-height: 100px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 #quoteDisplay {
-    user-select: none; /* Prevents text selection */
+    user-select: none;
+    font-family: 'Fredoka', sans-serif;
 }
-.quote-input
-{
-    background-color: transparent;
-    border: 2px solid #000000;
+
+.quote-input {
+    background-color: #ffffff;
+    border: 3px solid #B0E0E6;
     width: 100%;
-    height: 70%;
-    margin: auto;
+    height: 150px;
+    margin: 20px auto;
     resize: none;
-    font-size: 1rem;
-    border-radius: .5rem;
+    font-size: 18px;
+    font-family: 'Fredoka', sans-serif;
+    border-radius: 15px;
+    padding: 15px;
+    color: #2C5F7C;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
 }
 
-.quote-input:focus
-{
-    border-color: black;
+.quote-input:focus {
+    outline: none;
+    border-color: #87CEEB;
+    box-shadow: 
+        0 0 0 3px rgba(135, 206, 235, 0.3),
+        inset 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.typing-button {
-    background-color: #007bff;
+.typing-button, .typing-option-button, .typing-closeButton {
+    background: linear-gradient(145deg, #4ECDC4 0%, #44A08D 100%);
     color: white;
     border: none;
-    padding: 10px 20px;
+    padding: 12px 24px;
     font-size: 16px;
-    border-radius: 5px;
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 600;
+    border-radius: 20px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: all 0.3s ease;
+    box-shadow: 
+        0 4px 8px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin: 10px;
 }
 
 .typing-closeButton {
@@ -84,13 +138,31 @@
     margin: 20px auto 0;
 }
 
+.typing-button:hover, .typing-option-button:hover, .typing-closeButton:hover {
+    background: linear-gradient(145deg, #44A08D 0%, #4ECDC4 100%);
+    transform: translateY(-2px);
+    box-shadow: 
+        0 6px 12px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.typing-button:active, .typing-option-button:active, .typing-closeButton:active {
+    transform: translateY(0);
+}
+
 .typing-option-button {
-    background-color: #007bff;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    font-size: 16px;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
+    width: 80%;
+    margin: 10px auto;
+    display: block;
+    font-size: 18px;
+    padding: 15px 30px;
+}
+
+#modal-type-options {
+    max-width: 500px;
+}
+
+#modal-type-display {
+    max-width: 700px;
+    width: 90%;
 }

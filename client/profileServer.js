@@ -18,8 +18,9 @@ const ejs = require('ejs')
 
 
 const app = express()
-const port = 3000                       // Port for profile server.
-const secretKey = 'runescapefan'         // Secret key for signing session token.
+const port = process.env.PORT || process.env.CLIENT_PORT || 3000                       // Port for profile server.
+const secretKey = process.env.SECRET_KEY || process.env.JWT_SECRET || 'runescapefan'         // Secret key for signing session token.
+const gameServerUrl = process.env.GAME_SERVER_URL || 'http://localhost:3030'         // Game server URL for client connections.
 
 
 
@@ -56,6 +57,11 @@ app.get('/', (req, res) => {
 // GET route for the login page
 app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, './views', 'login.html'))
+})
+
+// GET route for the register page
+app.get('/register', (req, res) => {
+    res.sendFile(path.join(__dirname, './views', 'register.html'))
 })
 
 // POST route for login
@@ -155,10 +161,69 @@ app.get('/logout', (req, res) => {
     })
 })
 
+// GET route for account settings
+app.get('/settings', (req, res) => {
+    if (req.session.user) {
+        res.render('settings', {
+            username: req.session.user.username,
+            shape: req.session.user.shape,
+            color: req.session.user.color
+        })
+    } else {
+        req.session.error = 'Access denied! Please log in.'
+        res.redirect('/login');
+    }
+})
+
+// POST route for updating user settings (color and shape)
+app.post('/settings/update', (req, res) => {
+    if (!req.session.user) {
+        return res.status(401).json({message: 'Not authenticated.'})
+    }
+
+    const { shape, color } = req.body
+    const userId = req.session.user.id
+
+    if (!shape || !color) {
+        return res.status(400).json({message: 'Shape and color are required.'})
+    }
+
+    // Validate shape
+    if (!['cube', 'sphere', 'cone'].includes(shape)) {
+        return res.status(400).json({message: 'Invalid shape. Must be cube, sphere, or cone.'})
+    }
+
+    // Validate color format (hex color)
+    if (!/^#[0-9A-F]{6}$/i.test(color)) {
+        return res.status(400).json({message: 'Invalid color format. Must be a hex color (e.g., #FF5733).'})
+    }
+
+    db.run('UPDATE accounts SET shape = ?, color = ? WHERE id = ?', [shape, color, userId], (error) => {
+        if (error) {
+            console.error(error.name, error.message)
+            return res.status(500).json({message: 'Error updating account settings.'})
+        }
+
+        // Update session user data
+        req.session.user.shape = shape
+        req.session.user.color = color
+
+        // Update JWT token with new shape and color
+        const token = jsonWebToken.sign(
+            {id: req.session.user.id, username: req.session.user.username, shape: shape, color: color},
+            secretKey,
+            {expiresIn: '3h'}
+        )
+
+        console.log(`Settings updated for user: ${req.session.user.username}, ${shape}, ${color}`)
+        return res.status(200).json({message: 'Settings updated successfully.', token: token})
+    })
+})
+
 // GET route for joining the game world
 app.get('/join', (req, res) => {
     if (req.session.user) {
-        res.sendFile(path.join(__dirname, './views', 'world.html'))
+        res.render('world', { gameServerUrl: gameServerUrl })
     } else {
         req.session.error = 'Access denied! Please log in.'
         res.redirect('/login');
@@ -167,8 +232,8 @@ app.get('/join', (req, res) => {
 
 // Server start
 if (process.env.NODE_ENV !== 'test') {
-    app.listen(port, () => {
-        console.log(`Login server running on http://localhost:${port}`)
+    app.listen(port, '0.0.0.0', () => {
+        console.log(`Login server running on http://0.0.0.0:${port}`)
     })
 }
   

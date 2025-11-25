@@ -31,6 +31,9 @@ export default class Movement {
         
         // A* parameters
         this.closeEnoughDistance = 0.25; // Distance considered "arrived" at destination
+        
+        // Movement cancellation tracking for optimization
+        this.activeMovements = new Map(); // Track active movement promises by playerId
     }
 
     //Update playersInScene dictionary
@@ -342,7 +345,7 @@ export default class Movement {
     }
 
     // Function move's the player along a path created by the aStar algorithm
-    async followPathOnlyConstant(playerId, path, speed = this.defaultSpeed) {
+    async followPathOnlyConstant(playerId, path, speed = this.defaultSpeed, cancellationToken = null) {
         return new Promise((resolve) => {
             if (!this.playersInScene[playerId]) {
                 console.error(`Player with ID ${playerId} does not exist in the scene.`);
@@ -354,8 +357,13 @@ export default class Movement {
             let currentSegment = 0;
     
             const moveToNextSegment = () => {
+                // Check for cancellation
+                if (cancellationToken && cancellationToken.cancelled) {
+                    resolve();
+                    return;
+                }
+                
                 if (currentSegment >= path.length - 1) {
-                    //console.log('Reached the final destination.');
                     resolve(); // Resolve the promise when the entire path is complete
                     return;
                 }
@@ -376,7 +384,17 @@ export default class Movement {
     
                 const startTime = performance.now();
     
+                let animationFrameId = null;
                 function animate(currentTime) {
+                    // Check for cancellation
+                    if (cancellationToken && cancellationToken.cancelled) {
+                        if (animationFrameId) {
+                            cancelAnimationFrame(animationFrameId);
+                        }
+                        resolve();
+                        return;
+                    }
+                    
                     const elapsedTime = currentTime - startTime;
                     const progress = Math.min(elapsedTime / segmentDuration, 1);
     
@@ -387,23 +405,23 @@ export default class Movement {
                     player.x = incX
                     player.y = incY
                     player.z = incZ
-    
+
                     player.mesh.position.set(incX, incY, incZ);
-    
+
                     if (progress < 1) {
-                        requestAnimationFrame(animate);
+                        animationFrameId = requestAnimationFrame(animate);
                     } else {
                         player.mesh.position.set(targetPoint.x, targetPoint.y, targetPoint.z);
                         player.x = targetPoint.x;
                         player.y = targetPoint.y;
                         player.z = targetPoint.z;
-    
+
                         currentSegment++;
                         moveToNextSegment();
                     }
                 }
     
-                requestAnimationFrame(animate);
+                animationFrameId = requestAnimationFrame(animate);
             }
     
             moveToNextSegment();
@@ -436,6 +454,18 @@ export default class Movement {
     // If an obstacle lies between a player and the destination, a mixture of 
     // movement along an aStar path and linear movement will be used
     async masterMovement(playerId, startPoint, destPoint) {
+        // Cancel any existing movement for this player (optimization)
+        if (this.activeMovements.has(playerId)) {
+            // Mark previous movement as cancelled - it will check and exit early
+            const prevMovement = this.activeMovements.get(playerId)
+            if (prevMovement && prevMovement.cancel) {
+                prevMovement.cancelled = true
+            }
+        }
+
+        // Create cancellation token for this movement
+        const movementToken = { cancelled: false }
+        this.activeMovements.set(playerId, movementToken)
 
         //Check if an obstacle lies between the player and destination point
         let [intersectsFlag, intersectObjects] = this.#detectObstacles(startPoint, destPoint);
@@ -444,32 +474,35 @@ export default class Movement {
     
         if (intersectsFlag) {
             const intersectionPoint = intersectObjects[0].point;
-            //console.log('Point of intersection with the object is', intersectionPoint);
-    
-            //const bufferDistance = this.bufferDistance;
             const pointBeforeIntersection = this.#getPointBeforeIntersection(startPoint, intersectionPoint);
-            //console.log('Point before intersection is', pointBeforeIntersection);
-     
             let path = this.#aStarSearch(pointBeforeIntersection, destPoint);
     
             // Wait for the linear movement to complete before starting path following
-            await this.linearMovementConstant(playerId, pointBeforeIntersection);
+            await this.linearMovementConstant(playerId, pointBeforeIntersection, this.defaultSpeed, movementToken);
+            
+            if (movementToken.cancelled) {
+                this.activeMovements.delete(playerId)
+                return
+            }
     
             if (path.length > 0) {
-                //console.log('Optimal path is:', path);
-                //console.log('Last path point is ', path[path.length - 1]);
-                
                 // Now follow the path
-                await this.followPathOnlyConstant(playerId, path);
+                await this.followPathOnlyConstant(playerId, path, this.defaultSpeed, movementToken);
+                
+                if (movementToken.cancelled) {
+                    this.activeMovements.delete(playerId)
+                    return
+                }
     
                 // Go to the destination point using linear movement
-                await this.linearMovementConstant(playerId, destPoint)
+                await this.linearMovementConstant(playerId, destPoint, this.defaultSpeed, movementToken)
             }
         } else {
-            //console.log('No point of intersection found');
-            //console.log('Using linear movement to move');
-            await this.linearMovementConstant(playerId, destPoint);
+            // Direct linear movement - optimized path
+            await this.linearMovementConstant(playerId, destPoint, this.defaultSpeed, movementToken);
         }
+        
+        this.activeMovements.delete(playerId)
     }
 
 

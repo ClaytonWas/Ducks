@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: ducks-client
+    env: docker
+    dockerfilePath: ./client/Dockerfile
+    dockerContext: ./client
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: CLIENT_PORT
+        value: 3000
+      - key: GAME_SERVER_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET
+        sync: false
+    healthCheckPath: /
+    plan: starter
+
+  - type: web
+    name: ducks-server
+    env: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    envVars:
+      - key: PORT
+        value: 3030
+      - key: GAME_SERVER_PORT
+        value: 3030
+      - key: PROFILE_SERVER_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+    plan: starter
+

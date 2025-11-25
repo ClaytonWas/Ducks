@@ -1,8 +1,14 @@
+import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+
 import Movement from './Movement.js'
 
 import TicTacToe from './ticTacToe.js'
 
 import Typing from './typing.js'
+
+// Make THREE available globally for other scripts
+window.THREE = THREE
 
 window.TicTacToe = TicTacToe
 
@@ -21,15 +27,36 @@ const renderer = new THREE.WebGLRenderer()
 const raycaster = new THREE.Raycaster()
 const mouse = new THREE.Vector2()
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
+// Initial camera position (overview mode default)
 camera.position.x = 0
-camera.position.y = 15
-camera.position.z = 15
-camera.rotation.x = -0.6
+camera.position.y = 20
+camera.position.z = 25
+camera.rotation.x = -0.5
+
+// Camera mode: 'follow' or 'overview'
+let cameraMode = 'follow'
+let localPlayerId = null
+let orbitControls = null
 
 // Adding A Floorplane To The Three.js Scene
 const gameWindow = document.getElementById('gameWindow')
-renderer.setSize(gameWindow.clientWidth, gameWindow.clientHeight)
-gameWindow.appendChild(renderer.domElement)
+
+// Initialize canvas size - use a function to ensure proper dimensions
+function initializeCanvas() {
+    if (gameWindow) {
+        const width = gameWindow.clientWidth || 800
+        const height = gameWindow.clientHeight || 600
+        renderer.setSize(width, height)
+        if (!gameWindow.contains(renderer.domElement)) {
+            gameWindow.appendChild(renderer.domElement)
+        }
+    }
+}
+
+// Try to initialize immediately, but also on DOM ready
+if (gameWindow && gameWindow.clientWidth > 0 && gameWindow.clientHeight > 0) {
+    initializeCanvas()
+}
 
 // Mesh Groups Of Level
 const floors = new THREE.Group()
@@ -53,7 +80,11 @@ scene.add(directionalLight)
 var playersInScene = {}
 var movementSystem = new Movement(scene, objects, floors, playersInScene)
 
-const host = 'http://localhost:3030'
+// Chat bubble DOM elements map
+var chatBubbles = new Map()
+
+// Use injected game server URL or fallback to localhost for development
+const host = window.GAME_SERVER_URL || 'http://localhost:3030'
 
 const socket = io(host, {
     auth: { token: token }
@@ -182,10 +213,40 @@ function typeQuote(quoteSize) {
 
 window.typeQuote = typeQuote
 
+// Movement throttling to reduce network overhead
+let lastMovementTime = 0
+const MOVEMENT_THROTTLE_MS = 50 // Send movement updates max every 50ms
+let pendingMovement = null
+let isMouseDown = false
+let currentMovementPromise = null
+
+function handleMovement(point) {
+    const now = Date.now()
+    
+    // Store the latest movement target
+    pendingMovement = point
+    
+    // Throttle network updates
+    if (now - lastMovementTime >= MOVEMENT_THROTTLE_MS) {
+        if (pendingMovement) {
+            socket.emit('updatePlayerPosition', pendingMovement)
+            pendingMovement = null
+            lastMovementTime = now
+        }
+    }
+}
+
 function onMouseClick(event) {
     mouse.x = ((event.clientX - gameWindow.getBoundingClientRect().left) / gameWindow.clientWidth) * 2 - 1;
     mouse.y = -((event.clientY - gameWindow.getBoundingClientRect().top) / gameWindow.clientHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera)
+
+    // Check objects first - if clicking an object, don't move
+    const intersectsObjects = raycaster.intersectObjects(objects.children)
+    if (intersectsObjects.length > 0) {
+        // Clicked on an object, don't do movement
+        return
+    }
 
     const intersectsTransitions = raycaster.intersectObjects(transitions.children)
     const intersectsFloors = raycaster.intersectObjects(floors.children)
@@ -207,13 +268,104 @@ function onMouseClick(event) {
     if (intersectsFloors.length > 0) {
         const point = intersectsFloors[0].point
         if (point) {
-            socket.emit('updatePlayerPosition', point)
+            handleMovement(point)
         }
     }
 }
 
+function onMouseMove(event) {
+    if (!isMouseDown) return
+    
+    mouse.x = ((event.clientX - gameWindow.getBoundingClientRect().left) / gameWindow.clientWidth) * 2 - 1;
+    mouse.y = -((event.clientY - gameWindow.getBoundingClientRect().top) / gameWindow.clientHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera)
+
+    // Only check floors for continuous movement
+    const intersectsFloors = raycaster.intersectObjects(floors.children)
+    if (intersectsFloors.length > 0) {
+        const point = intersectsFloors[0].point
+        if (point) {
+            handleMovement(point)
+        }
+    }
+}
+
+function onMouseDown(event) {
+    // Only handle left mouse button for movement
+    if (event.button === 0) { // Left mouse button
+        isMouseDown = true
+        onMouseClick(event) // Handle initial click
+    }
+}
+
+function onMouseUp(event) {
+    // Only handle left mouse button for movement
+    if (event.button === 0) { // Left mouse button
+        isMouseDown = false
+        pendingMovement = null // Clear any pending movement
+    }
+}
+
+function updateChatBubblePositions() {
+    // Update positions of all chat bubbles based on player positions
+    chatBubbles.forEach((bubbleData, playerId) => {
+        const player = bubbleData.player
+        if (!player || !player.mesh) return
+        
+        // Get player's world position
+        const worldPosition = new THREE.Vector3()
+        player.mesh.getWorldPosition(worldPosition)
+        
+        // Project 3D position to 2D screen coordinates
+        worldPosition.y += 2 // Offset above player
+        const vector = worldPosition.project(camera)
+        
+        // Convert normalized device coordinates to screen coordinates
+        const x = (vector.x * 0.5 + 0.5) * gameWindow.clientWidth
+        const y = (vector.y * -0.5 + 0.5) * gameWindow.clientHeight
+        
+        // Update bubble position
+        const bubble = bubbleData.element
+        bubble.style.left = x + 'px'
+        bubble.style.top = y + 'px'
+        bubble.style.transform = 'translate(-50%, -100%)'
+        
+        // Hide if behind camera or too far
+        if (vector.z > 1 || vector.z < -1) {
+            bubble.style.display = 'none'
+        } else {
+            bubble.style.display = 'block'
+        }
+    })
+}
+
 function animate() {
     renderer.setSize(gameWindow.clientWidth, gameWindow.clientHeight)
+    
+    // In follow mode, update OrbitControls target to player position
+    // This allows the camera to orbit around the player while letting users control zoom/position
+    if (cameraMode === 'follow' && localPlayerId && playersInScene[localPlayerId]) {
+        const player = playersInScene[localPlayerId]
+        
+        // Update OrbitControls target to player position in follow mode
+        // This makes the camera orbit around the player, but doesn't reset camera position
+        if (orbitControls && orbitControls.enabled) {
+            // Smoothly update the target to follow the player
+            orbitControls.target.x += (player.x - orbitControls.target.x) * 0.1
+            orbitControls.target.y += (player.y - orbitControls.target.y) * 0.1
+            orbitControls.target.z += (player.z - orbitControls.target.z) * 0.1
+        }
+    }
+    
+    // Update orbit controls if enabled
+    // OrbitControls handles all camera positioning when enabled
+    if (orbitControls && orbitControls.enabled) {
+        orbitControls.update()
+    }
+    
+    // Update chat bubble positions
+    updateChatBubblePositions()
+    
     requestAnimationFrame(animate);
     renderer.render(scene, camera);
 }
@@ -227,47 +379,52 @@ function instantiatePlayer(id, name, shape, color, position) {
 }
 
 function chatBubble(player, message) {
-    const canvas = document.createElement('canvas')
-    const context = canvas.getContext('2d')
-    canvas.width = 4096
-    canvas.height = 2048
+    // Remove existing chat bubble for this player if any
+    if (chatBubbles.has(player.id)) {
+        const existingBubble = chatBubbles.get(player.id)
+        if (existingBubble.element && existingBubble.element.parentNode) {
+            existingBubble.element.parentNode.removeChild(existingBubble.element)
+        }
+        if (existingBubble.timeout) {
+            clearTimeout(existingBubble.timeout)
+        }
+    }
 
+    // Create DOM element for chat bubble
+    const bubbleElement = document.createElement('div')
+    bubbleElement.className = 'chat-bubble'
+    bubbleElement.textContent = message
     
-    // Draw the chat bubble
-    context.fillStyle = 'white'
-    context.strokeStyle = 'gray'
-    context.lineWidth = 10
-
-    // Calculate center and radii for the ellipse
-    const centerX = canvas.width / 2
-    const centerY = canvas.height / 2
-    const radiusX = canvas.width / 3
-    const radiusY = canvas.height / 3
-
-    context.beginPath()
-    context.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2)
-    context.fill()
-    context.stroke()
-
-    context.font = '400px Arial'
-    context.fillStyle = 'black'
-    context.textAlign = 'center'
-    context.fillText(message, centerX, centerY)
-
-    const texture = new THREE.CanvasTexture(canvas)
-    const material = new THREE.SpriteMaterial({ map: texture, transparent: true })
-    const sprite = new THREE.Sprite(material)
-
-    sprite.position.set(0, 2, 0)
-    sprite.scale.set(5, 2.5, 1)
-
-    player.mesh.add(sprite)
-
-    setInterval(() => {
-        player.mesh.remove(sprite)
-        material.dispose()
-        texture.dispose()
+    // Get or create chat bubbles container
+    let chatContainer = document.getElementById('chatBubblesContainer')
+    if (!chatContainer) {
+        chatContainer = document.createElement('div')
+        chatContainer.id = 'chatBubblesContainer'
+        chatContainer.style.position = 'absolute'
+        chatContainer.style.top = '0'
+        chatContainer.style.left = '0'
+        chatContainer.style.width = '100%'
+        chatContainer.style.height = '100%'
+        chatContainer.style.pointerEvents = 'none'
+        chatContainer.style.zIndex = '1000'
+        gameWindow.appendChild(chatContainer)
+    }
+    
+    chatContainer.appendChild(bubbleElement)
+    
+    // Store bubble reference
+    const timeout = setTimeout(() => {
+        if (bubbleElement.parentNode) {
+            bubbleElement.parentNode.removeChild(bubbleElement)
+        }
+        chatBubbles.delete(player.id)
     }, 7000)
+    
+    chatBubbles.set(player.id, {
+        element: bubbleElement,
+        player: player,
+        timeout: timeout
+    })
 }
 
 function emptyGroup(group) {
@@ -381,7 +538,113 @@ const toolbarInputs = {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    gameWindow.addEventListener('click', onMouseClick)
+    // Ensure canvas is properly initialized with correct dimensions
+    initializeCanvas()
+    
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        initializeCanvas()
+        if (orbitControls) {
+            orbitControls.handleResize()
+        }
+    })
+    
+    // Initialize OrbitControls - always enabled, uses right mouse button
+    try {
+        orbitControls = new OrbitControls(camera, renderer.domElement)
+        orbitControls.enableDamping = true // Smooth camera movement
+        orbitControls.dampingFactor = 0.05
+        orbitControls.enableZoom = true
+        orbitControls.enablePan = true
+        orbitControls.minDistance = 5
+        orbitControls.maxDistance = 100
+        orbitControls.maxPolarAngle = Math.PI / 2 // Prevent camera from going below ground
+        
+        // Configure to use right mouse button for rotation
+        orbitControls.mouseButtons = {
+            LEFT: null, // Disable left mouse button (we use it for movement)
+            MIDDLE: THREE.MOUSE.DOLLY, // Middle mouse for zoom
+            RIGHT: THREE.MOUSE.ROTATE // Right mouse for rotation
+        }
+        
+        // Enable pan with right mouse + shift
+        orbitControls.panSpeed = 1.0
+        
+        // Always enabled - works in both modes
+        orbitControls.enabled = true
+        console.log('OrbitControls initialized successfully')
+    } catch (error) {
+        console.error('Failed to initialize OrbitControls:', error)
+    }
+    
+    // Camera toggle button
+    const cameraToggle = document.getElementById('cameraToggle')
+    if (cameraToggle) {
+        // Set initial state based on default mode
+        if (cameraMode === 'follow') {
+            cameraToggle.textContent = '🌐'
+            cameraToggle.title = 'Switch to Overview Camera'
+        } else {
+            cameraToggle.textContent = '📷'
+            cameraToggle.title = 'Switch to Follow Camera'
+        }
+        
+        cameraToggle.addEventListener('click', () => {
+            if (cameraMode === 'follow') {
+                // Switch to overview mode
+                cameraMode = 'overview'
+                // Move camera forward for better overview
+                camera.position.x = 0
+                camera.position.y = 20
+                camera.position.z = 25
+                camera.rotation.x = -0.5
+                camera.rotation.y = 0
+                camera.rotation.z = 0
+                
+                // Update orbit controls target to center of scene
+                if (orbitControls) {
+                    orbitControls.target.set(0, 0, 0)
+                    orbitControls.update()
+                }
+                
+                cameraToggle.textContent = '📷'
+                cameraToggle.title = 'Switch to Follow Camera'
+            } else {
+                // Switch to follow mode
+                cameraMode = 'follow'
+                
+                // Set OrbitControls target to player position if available
+                if (orbitControls && localPlayerId && playersInScene[localPlayerId]) {
+                    const player = playersInScene[localPlayerId]
+                    orbitControls.target.set(player.x, player.y, player.z)
+                    // Set initial camera position behind and above player (but user can adjust)
+                    const offsetX = 0
+                    const offsetY = 3
+                    const offsetZ = 5
+                    camera.position.set(
+                        player.x + offsetX,
+                        player.y + offsetY,
+                        player.z + offsetZ
+                    )
+                    orbitControls.update()
+                }
+                
+                cameraToggle.textContent = '🌐'
+                cameraToggle.title = 'Switch to Overview Camera'
+            }
+        })
+    }
+    
+    // Mouse event listeners for click and drag movement
+    gameWindow.addEventListener('mousedown', onMouseDown)
+    gameWindow.addEventListener('mousemove', onMouseMove)
+    gameWindow.addEventListener('mouseup', onMouseUp)
+    gameWindow.addEventListener('mouseleave', onMouseUp) // Stop dragging if mouse leaves window
+    
+    // Prevent context menu on right-click for OrbitControls
+    gameWindow.addEventListener('contextmenu', (event) => {
+        event.preventDefault()
+    })
 
     // Toolbar Listener
     document.addEventListener('keydown', (event) => {
@@ -498,11 +761,29 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reinitalize playersInScene and movementSystem
         playersInScene = {}
         movementSystem.updateSceneAndPlayers(scene, playersInScene)
+        
+        // Clean up all chat bubbles when scene changes
+        chatBubbles.forEach((bubbleData) => {
+            if (bubbleData.timeout) {
+                clearTimeout(bubbleData.timeout)
+            }
+            if (bubbleData.element && bubbleData.element.parentNode) {
+                bubbleData.element.parentNode.removeChild(bubbleData.element)
+            }
+        })
+        chatBubbles.clear()
     })
 
     socket.on('sendWorldTime', (date) => {
         let gameServerTime = new Date(date)
-        let gameServerTimeString = gameServerTime.toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true })
+        // Format as "hh:mm AM/PM" (no seconds)
+        let hours = gameServerTime.getHours()
+        let minutes = gameServerTime.getMinutes()
+        let ampm = hours >= 12 ? 'PM' : 'AM'
+        hours = hours % 12
+        hours = hours ? hours : 12 // 0 should be 12
+        minutes = minutes < 10 ? '0' + minutes : minutes
+        let gameServerTimeString = `${hours}:${minutes} ${ampm}`
         document.getElementById('worldDateTime').textContent = gameServerTimeString
 
         let currentHour = gameServerTime.getHours()
@@ -517,21 +798,86 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     })
 
+    // Track which player we control by monitoring position updates
+    let positionUpdateHandler = null
+    
     socket.on('sendPlayerData', (player) => {
         instantiatePlayer(player.id, player.username, player.shape, player.color, player.position)
         console.log(`${player.username} added to my scene`)
+        
+        // Set local player ID on first player received (usually ourselves)
+        if (!localPlayerId) {
+            localPlayerId = player.id
+            console.log(`Local player ID set to: ${localPlayerId}`)
+            // Set initial camera position in follow mode when player first loads
+            if (cameraMode === 'follow' && orbitControls && orbitControls.enabled) {
+                const offsetX = 0
+                const offsetY = 3
+                const offsetZ = 5
+                camera.position.set(
+                    player.position.x + offsetX,
+                    player.position.y + offsetY,
+                    player.position.z + offsetZ
+                )
+                orbitControls.target.set(player.position.x, player.position.y, player.position.z)
+                orbitControls.update()
+            }
+        }
     })
+    
+    // Refine local player detection when we move - track which player moves
+    const originalEmit = socket.emit.bind(socket)
+    socket.emit = function(event, ...args) {
+        if (event === 'updatePlayerPosition' && !localPlayerId) {
+            // If we don't have a local player ID yet, find the closest player to clicked point
+            const clickedPoint = args[0]
+            let closestPlayer = null
+            let closestDistance = Infinity
+            
+            for (const [id, player] of Object.entries(playersInScene)) {
+                const distance = Math.sqrt(
+                    Math.pow(player.x - clickedPoint.x, 2) +
+                    Math.pow(player.z - clickedPoint.z, 2)
+                )
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestPlayer = id
+                }
+            }
+            
+            if (closestPlayer) {
+                localPlayerId = closestPlayer
+                console.log(`Local player ID identified: ${localPlayerId}`)
+            }
+        }
+        return originalEmit(event, ...args)
+    }
 
     // Client-Side Message Sent To Game Server
     let sendMessageButton = document.getElementById('sendUserMessage')
-    sendMessageButton.addEventListener('click', async () => {  
-        let userInput = document.getElementById('userMessage')
-        let userMessage = String(userInput.value)
+    let userInput = document.getElementById('userMessage')
+    
+    // Function to send message
+    function sendMessage() {
+        let userMessage = String(userInput.value).trim()
         if(userMessage) {
             userInput.value = ''
             socket.emit('sendGlobalUserMessage', userMessage);
+            // Keep focus on input field
+            userInput.focus()
         } else {
             console.log('Message could not be sent!')
+        }
+    }
+    
+    // Send button click
+    sendMessageButton.addEventListener('click', sendMessage)
+    
+    // Enter key to send message
+    userInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault()
+            sendMessage()
         }
     })
 
@@ -554,9 +900,19 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('broadcastPlayerPosition', (movementData) => {
         let currPosition = {x: playersInScene[movementData.id].x, y: playersInScene[movementData.id].y, z: playersInScene[movementData.id].z}
         
+        // Cancel previous movement if new one comes in (optimization)
+        // The movement system will handle this internally via async cancellation
         movementSystem.masterMovement(movementData.id, currPosition, movementData.position)
-   
     })
+    
+    // Throttled movement update interval - sends pending movements periodically
+    setInterval(() => {
+        if (pendingMovement) {
+            socket.emit('updatePlayerPosition', pendingMovement)
+            pendingMovement = null
+            lastMovementTime = Date.now()
+        }
+    }, MOVEMENT_THROTTLE_MS)
 
     //Remove players from mesh that have disconnected
     socket.on('userDisconnected', (id) => {
@@ -570,6 +926,18 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(`Player instance with id ${id} removed from scene.`);
         } else {
             console.warn(`Player with id ${id} not found in playersInScene.`);
+        }
+        
+        // Remove chat bubble if exists
+        if (chatBubbles.has(id)) {
+            const bubbleData = chatBubbles.get(id)
+            if (bubbleData.timeout) {
+                clearTimeout(bubbleData.timeout)
+            }
+            if (bubbleData.element && bubbleData.element.parentNode) {
+                bubbleData.element.parentNode.removeChild(bubbleData.element)
+            }
+            chatBubbles.delete(id)
         }
     })
 

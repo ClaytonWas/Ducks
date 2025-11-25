@@ -8,7 +8,19 @@
     <link rel="stylesheet" href="/styles/tic-tac-toe.css">
     <link rel="stylesheet" href="/styles/typing.css">
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+            "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    <script>
+        // Inject game server URL from server
+        window.GAME_SERVER_URL = '<%= gameServerUrl %>';
+    </script>
     <script src="./scripts/player.js" defer></script>
     <script type="module" src="./scripts/client.js" defer></script>
     <script type="module" src="./scripts/priorityQueue.js" defer></script>
@@ -16,18 +28,38 @@
     <script type="module" src="./scripts/typing.js" defer></script>
 </head>
 <body>
-    <div id = "gameDiv">
-        <div id="gameWindow"></div>
-        <div id="messagesHandler">
-            <textarea id="messagesLog" readonly></textarea>
-            <div id="messagesSender">
-                <input id="userMessage">
-                <button id="sendUserMessage">Send</button>
-            </div>
+    <nav id="gameNav">
+        <div class="nav-content">
+            <a href="/home" class="nav-item">
+                🏠 Main Menu
+            </a>
+            <a href="/settings" class="nav-item">
+                🎨 Settings
+            </a>
+            <a href="/logout" class="nav-item">
+                🚪 Logout
+            </a>
         </div>
-        <div id="worldDateTimeDiv">
-            <p>World Time (Updating Every Miniute): </p>
-            <p id="worldDateTime"></p>
+    </nav>
+    <div id="gameContainer">
+        <div id="gameDiv">
+            <button id="cameraToggle" class="camera-toggle-btn" title="Toggle Camera View">
+                📷
+            </button>
+            <div id="gameWindow"></div>
+        </div>
+        <div id="sidebar">
+            <div id="worldDateTimeDiv">
+                <h3>World Time</h3>
+                <div id="worldDateTime"></div>
+            </div>
+            <div id="messagesHandler">
+                <textarea id="messagesLog" readonly></textarea>
+                <div id="messagesSender">
+                    <input id="userMessage" placeholder="Type your message...">
+                    <button id="sendUserMessage">Send</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -95,3 +127,4 @@
 
 </body>
 </html>
+

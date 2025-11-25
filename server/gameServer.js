@@ -8,9 +8,9 @@ const fs = require('fs')
 
 // Config
 const SHIP = {
-    PORT: 3030,
-    SECRET_KEY: 'runescapefan',
-    PROFILE_SERVER: 'http://localhost:3000',
+    PORT: process.env.PORT || process.env.GAME_SERVER_PORT || 3030,
+    SECRET_KEY: process.env.SECRET_KEY || process.env.JWT_SECRET || 'runescapefan',
+    PROFILE_SERVER: process.env.PROFILE_SERVER_URL || 'http://localhost:3000',
     TIME_API: 'http://worldtimeapi.org/api/timezone/America/Toronto',
     QUOTE_API: 'https://api.quotable.io/random'
 }
@@ -39,9 +39,24 @@ let worldDateTime = new Date(1999, 1, 1, 9, 10, 0, 0)
 // Server
 const app = express()
 const server = http.createServer(app)
+
+// CORS configuration - allow profile server and localhost for development
+const allowedOrigins = [
+    SHIP.PROFILE_SERVER,
+    'http://localhost:3000',
+    'http://127.0.0.1:3000'
+].filter(Boolean) // Remove any undefined values
+
 const io = new Server(server, {
     cors: {
-        origin: SHIP.PROFILE_SERVER,
+        origin: (origin, callback) => {
+            // Allow requests with no origin (like mobile apps or curl requests)
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true)
+            } else {
+                callback(new Error('Not allowed by CORS'))
+            }
+        },
         methods: ["GET", "POST"],
         credentials: true
     }
@@ -49,7 +64,13 @@ const io = new Server(server, {
 
 // Middleware for CORS
 app.use(cors({
-    origin: SHIP.PROFILE_SERVER,
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true)
+        } else {
+            callback(new Error('Not allowed by CORS'))
+        }
+    },
     methods: ["GET", "POST"],
     credentials: true
 }))
@@ -59,6 +80,21 @@ app.use(express.static(path.join(__dirname)))
 
 // Loading textures to port 3030
 app.get('/textures', (req, res) => {
+    const texturesPath = path.join(__dirname, './textures')
+
+    fs.readdir(texturesPath, (error, files) => {
+        if (error) {
+            console.error('Error reading textures directory:', error)
+            return res.status(500).json({ error: 'Unable to load textures.' })
+        }
+
+        const textures = files.filter(file => /\.(png|jpg|jpeg|webp|gif)$/i.test(file))
+        res.json(textures)
+    })
+})
+
+// Also handle trailing slash for consistency
+app.get('/textures/', (req, res) => {
     const texturesPath = path.join(__dirname, './textures')
 
     fs.readdir(texturesPath, (error, files) => {
@@ -629,8 +665,8 @@ io.engine.on("connection_error", (error) => {
 async function initializeServer() {
     try { 
         await getTimeFromAPI()
-        server.listen(SHIP.PORT, () => {
-            console.log(`Server running on http://localhost:${SHIP.PORT}.`)
+        server.listen(SHIP.PORT, '0.0.0.0', () => {
+            console.log(`Server running on http://0.0.0.0:${SHIP.PORT}.`)
         })
         setInterval(playerMonitor.emitWorldDateTime, 60000)
         serverTTT.initializeBoards()
@@ -642,4 +678,11 @@ async function initializeServer() {
     }
 }
 
-initializeServer()
+// Only start server if running directly (not when required by tests)
+// Jest automatically sets NODE_ENV=test, and we also check if module is being required
+if (require.main === module && process.env.NODE_ENV !== 'test') {
+    initializeServer()
+}
+
+// Export app for testing
+module.exports = app
