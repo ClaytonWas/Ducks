@@ -239,7 +239,19 @@ const serverScenes = {
 // API Communications
 async function getTimeFromAPI() {
     try {
-        const response = await fetch(SHIP.TIME_API)
+        // Add timeout and better error handling
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+        
+        const response = await fetch(SHIP.TIME_API, {
+            signal: controller.signal,
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        
+        clearTimeout(timeoutId)
+        
         if(!response.ok) {
             if(response.status === 404) {
                 throw new Error ('dateTimeAPI Not Found, Setting Default dateTime.')
@@ -253,8 +265,12 @@ async function getTimeFromAPI() {
         worldDateTime = new Date(data.datetime)
         console.log(`Server Time: ${worldDateTime}`)
     } catch (error) {
-        console.error('Error With Fetching dateTimeAPI:', error)
-        console.log(`Server Time: ${worldDateTime}`)
+        // Only log if it's not a network error (which is expected in some deployments)
+        if (error.name !== 'AbortError' && error.code !== 'ECONNRESET') {
+            console.error('Error With Fetching dateTimeAPI:', error.message)
+        }
+        // Silently fall back to default time
+        console.log(`Server Time: ${worldDateTime} (using default)`)
     }
     return worldDateTime
 } 

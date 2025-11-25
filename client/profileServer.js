@@ -14,6 +14,7 @@ const bcrypt = require('bcrypt')
 const path = require('path')
 const jsonWebToken = require('jsonwebtoken')
 const ejs = require('ejs')
+const fs = require('fs')
 
 
 
@@ -32,7 +33,44 @@ app.set('views', path.join(__dirname, 'views'))
 
 // SQLite database interaction functions.
 // Reads the accounts.db.
-const db = new sqlite3.Database(path.join(__dirname, './db/accounts.db'), (error) => {
+const dbPath = path.join(__dirname, './db/accounts.db')
+const dbDir = path.dirname(dbPath)
+
+// Ensure db directory exists
+if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true })
+}
+
+// Initialize database if it doesn't exist
+if (!fs.existsSync(dbPath)) {
+    console.log('Database not found, initializing...')
+    try {
+        const sqlPath = path.join(__dirname, './db/accounts.sql')
+        if (fs.existsSync(sqlPath)) {
+            const accountsDB = new sqlite3.Database(dbPath, (error) => {
+                if (error) {
+                    console.error('Error creating database:', error)
+                } else {
+                    const sql = fs.readFileSync(sqlPath, 'utf-8')
+                    accountsDB.exec(sql, (error) => {
+                        if (error) {
+                            console.error('Error initializing schema:', error)
+                        } else {
+                            console.log('Database initialized successfully')
+                        }
+                        accountsDB.close()
+                    })
+                }
+            })
+        } else {
+            console.error('SQL file not found:', sqlPath)
+        }
+    } catch (error) {
+        console.error('Error initializing database:', error)
+    }
+}
+
+const db = new sqlite3.Database(dbPath, (error) => {
     if (error) {
         return console.error(error.message)
     }

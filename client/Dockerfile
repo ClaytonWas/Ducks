@@ -19,6 +19,10 @@ RUN npm install && \
 
 COPY . .
 
+# Initialize database on container start
+RUN node ./db/dbs.js || echo "Database initialization attempted"
+
 EXPOSE 3000
 
-CMD ["node", "profileServer.js"]
+# Initialize database and start server
+CMD ["sh", "-c", "node ./db/dbs.js && node profileServer.js"]
