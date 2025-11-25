@@ -40,20 +40,56 @@ let worldDateTime = new Date(1999, 1, 1, 9, 10, 0, 0)
 const app = express()
 const server = http.createServer(app)
 
-// CORS configuration - allow profile server and localhost for development
-const allowedOrigins = [
-    SHIP.PROFILE_SERVER,
-    'http://localhost:3000',
-    'http://127.0.0.1:3000'
-].filter(Boolean) // Remove any undefined values
+// CORS configuration - allow profile server and custom domains
+const normalizeUrl = (url) => {
+    if (!url) return null
+    return url.replace(/\/$/, '') // Remove trailing slash
+}
+
+// Build allowed origins list
+const allowedOrigins = []
+
+// Add PROFILE_SERVER_URL (your custom domain or Railway URL)
+if (SHIP.PROFILE_SERVER) {
+    const normalized = normalizeUrl(SHIP.PROFILE_SERVER)
+    if (normalized) {
+        allowedOrigins.push(normalized)
+    }
+}
+
+// Add additional allowed origins from environment variable (comma-separated)
+// Example: ALLOWED_ORIGINS=https://aduckgame.com,https://www.aduckgame.com
+if (process.env.ALLOWED_ORIGINS) {
+    process.env.ALLOWED_ORIGINS.split(',').forEach(origin => {
+        const normalized = normalizeUrl(origin.trim())
+        if (normalized && !allowedOrigins.includes(normalized)) {
+            allowedOrigins.push(normalized)
+        }
+    })
+}
+
+// Add localhost for development
+allowedOrigins.push('http://localhost:3000')
+allowedOrigins.push('http://127.0.0.1:3000')
+
+console.log('Allowed CORS origins:', allowedOrigins)
+
+// CORS check function
+const checkOrigin = (origin) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return true
+    
+    const normalized = normalizeUrl(origin)
+    return allowedOrigins.includes(normalized) || allowedOrigins.includes(origin)
+}
 
 const io = new Server(server, {
     cors: {
         origin: (origin, callback) => {
-            // Allow requests with no origin (like mobile apps or curl requests)
-            if (!origin || allowedOrigins.includes(origin)) {
+            if (checkOrigin(origin)) {
                 callback(null, true)
             } else {
+                console.warn(`CORS blocked: ${origin}`)
                 callback(new Error('Not allowed by CORS'))
             }
         },
@@ -65,9 +101,10 @@ const io = new Server(server, {
 // Middleware for CORS
 app.use(cors({
     origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
+        if (checkOrigin(origin)) {
             callback(null, true)
         } else {
+            console.warn(`CORS blocked: ${origin}`)
             callback(new Error('Not allowed by CORS'))
         }
     },
