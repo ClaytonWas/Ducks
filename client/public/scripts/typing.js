@@ -12,6 +12,35 @@ export default class Typing {
         this.interval = null
 
         this.socket = socket
+        
+        // Create progress bar if it doesn't exist
+        this.createProgressBar()
+    }
+    
+    createProgressBar() {
+        // Check if progress bar already exists
+        if (document.getElementById('typing-progress')) return
+        
+        const modal = document.getElementById('modal-type-display')
+        if (modal) {
+            const progressContainer = document.createElement('div')
+            progressContainer.className = 'typing-progress'
+            progressContainer.id = 'typing-progress'
+            progressContainer.innerHTML = '<div class="typing-progress-bar" id="typing-progress-bar" style="width: 0%"></div>'
+            
+            // Insert after quoteDisplay
+            const quoteDisplay = document.getElementById('quoteDisplay')
+            if (quoteDisplay && quoteDisplay.parentNode) {
+                quoteDisplay.parentNode.insertBefore(progressContainer, quoteDisplay.nextSibling)
+            }
+        }
+    }
+    
+    updateProgress(percentage) {
+        const progressBar = document.getElementById('typing-progress-bar')
+        if (progressBar) {
+            progressBar.style.width = Math.min(percentage, 100) + '%'
+        }
     }
     
     
@@ -62,6 +91,9 @@ export default class Typing {
         console.log(this.quote)
 
         this.quoteDisplay.innerHTML = ''
+        
+        // Reset progress
+        this.updateProgress(0)
 
         this.quote.split('').forEach(character => {
             const characterSpan = document.createElement('span')
@@ -112,6 +144,10 @@ export default class Typing {
                     
                 })
 
+                // Update progress
+                const progress = (arrValue.length / this.quote.length) * 100
+                this.updateProgress(progress)
+
                 if (correct) {
 
                     this.textArea.setAttribute('disabled', true)
@@ -122,9 +158,21 @@ export default class Typing {
 
                     const timeTaken = this.getTimerTime()
 
-                    const victoryString = `You typed the quote in ${timeTaken} seconds at a speed of ${wpm} words per minute!`
-
-                    this.quoteDisplay.innerHTML = victoryString
+                    const victoryString = `🎉 Amazing! You typed the quote in ${timeTaken} seconds at a speed of ${wpm} words per minute! 🎉`
+                    
+                    // Create styled victory message
+                    this.quoteDisplay.innerHTML = `<div style="
+                        font-size: 24px;
+                        font-weight: 700;
+                        color: #2E7D32;
+                        text-align: center;
+                        padding: 20px;
+                        background: linear-gradient(145deg, rgba(76, 175, 80, 0.1) 0%, rgba(129, 199, 132, 0.2) 100%);
+                        border-radius: 15px;
+                        border: 3px solid #4CAF50;
+                        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+                        animation: victoryPulse 1s ease;
+                    ">${victoryString}</div>`
 
                 }
 

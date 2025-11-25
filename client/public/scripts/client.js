@@ -241,16 +241,40 @@ function onMouseClick(event) {
     mouse.y = -((event.clientY - gameWindow.getBoundingClientRect().top) / gameWindow.clientHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera)
 
-    // Check objects first - if clicking an object, don't move
-    const intersectsObjects = raycaster.intersectObjects(objects.children)
-    if (intersectsObjects.length > 0) {
-        // Clicked on an object, don't do movement
-        return
+    // Check transitions first - they take priority
+    // First try direct mesh intersection
+    let intersectsTransitions = raycaster.intersectObjects(transitions.children, true)
+    
+    // If no direct hit, check if ray passes through any transition's bounding box
+    // This makes the entire door clickable, not just where the mesh surface is
+    if (intersectsTransitions.length === 0) {
+        const ray = raycaster.ray
+        const transitionHits = []
+        
+        transitions.children.forEach(transition => {
+            if (transition.userData.transition) {
+                // Get bounding box in world space
+                transition.updateMatrixWorld(true)
+                const box = new THREE.Box3().setFromObject(transition)
+                // Check if ray intersects the bounding box
+                const intersectionPoint = new THREE.Vector3()
+                const isIntersecting = ray.intersectBox(box, intersectionPoint)
+                if (isIntersecting) {
+                    // Create a fake intersection result
+                    transitionHits.push({
+                        object: transition,
+                        distance: camera.position.distanceTo(intersectionPoint),
+                        point: intersectionPoint
+                    })
+                }
+            }
+        })
+        
+        // Sort by distance to get closest
+        transitionHits.sort((a, b) => a.distance - b.distance)
+        intersectsTransitions = transitionHits
     }
-
-    const intersectsTransitions = raycaster.intersectObjects(transitions.children)
-    const intersectsFloors = raycaster.intersectObjects(floors.children)
-
+    
     if (intersectsTransitions.length > 0) {
         const onClick = intersectsTransitions[0].object.userData.transition
 
@@ -265,6 +289,15 @@ function onMouseClick(event) {
         return
     }
 
+    // Check objects - if clicking an object, don't move
+    const intersectsObjects = raycaster.intersectObjects(objects.children, true)
+    if (intersectsObjects.length > 0) {
+        // Clicked on an object, don't do movement
+        return
+    }
+
+    // Check floors for movement
+    const intersectsFloors = raycaster.intersectObjects(floors.children, true)
     if (intersectsFloors.length > 0) {
         const point = intersectsFloors[0].point
         if (point) {
