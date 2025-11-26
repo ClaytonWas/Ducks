@@ -86,9 +86,22 @@ export default class Typing {
 
     loadQuote (quoteData) {
 
+        if (!quoteData || !quoteData.content) {
+            console.error('Invalid quote data:', quoteData)
+            if (this.quoteDisplay) {
+                this.quoteDisplay.innerHTML = '<div style="color: #D32F2F; padding: 20px; text-align: center;">Error: Invalid quote data received</div>'
+            }
+            return
+        }
+
+        if (!this.quoteDisplay) {
+            console.error('quoteDisplay element not found')
+            return
+        }
+
         this.quote = quoteData.content
 
-        console.log(this.quote)
+        console.log('Loading quote:', this.quote.substring(0, 50) + '...')
 
         this.quoteDisplay.innerHTML = ''
         
@@ -101,8 +114,11 @@ export default class Typing {
             this.quoteDisplay.append(characterSpan)
         })
 
-        this.textArea.removeAttribute('disabled')
-        this.quoteInput.value = null
+        if (this.textArea) {
+            this.textArea.removeAttribute('disabled')
+            this.quoteInput.value = null
+        }
+        
         this.startTimer()
 
     }

@@ -1,5 +1,6 @@
 const express = require('express')
 const http = require('http')
+const https = require('https')
 const { Server } = require('socket.io')
 const cors = require('cors')
 const jsonWebToken = require('jsonwebtoken')
@@ -12,7 +13,8 @@ const SHIP = {
     SECRET_KEY: process.env.SECRET_KEY || process.env.JWT_SECRET || 'runescapefan',
     PROFILE_SERVER: process.env.PROFILE_SERVER_URL || 'http://localhost:3000',
     TIME_API: 'http://worldtimeapi.org/api/timezone/America/Toronto',
-    QUOTE_API: 'https://api.quotable.io/random'
+    QUOTE_API: 'https://api.quotable.io/random',
+    USE_QUOTE_API: process.env.USE_QUOTE_API !== 'false' // Set to 'false' to disable external API and use fallbacks only
 }
 
 // Globals
@@ -516,29 +518,287 @@ const serverTTT = {
 //Functions for typing minigame
 const serverTyping = {
 
-    async getRandomQuote(socket, params) {
+    // Fallback quotes when API fails
+    getFallbackQuote(params) {
+        const shortQuotes = [
+            { content: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
+            { content: "Innovation distinguishes between a leader and a follower.", author: "Steve Jobs" },
+            { content: "Life is what happens to you while you're busy making other plans.", author: "John Lennon" },
+            { content: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt" },
+            { content: "It is during our darkest moments that we must focus to see the light.", author: "Aristotle" }
+        ]
+        
+        const mediumQuotes = [
+            { content: "The greatest glory in living lies not in never falling, but in rising every time we fall. The way to get started is to quit talking and begin doing.", author: "Nelson Mandela" },
+            { content: "Your time is limited, so don't waste it living someone else's life. Don't be trapped by dogma which is living with the results of other people's thinking.", author: "Steve Jobs" },
+            { content: "If life were predictable it would cease to be life, and be without flavor. The way to get started is to quit talking and begin doing.", author: "Eleanor Roosevelt" },
+            { content: "If you look at what you have in life, you'll always have more. If you look at what you don't have in life, you'll never have enough.", author: "Oprah Winfrey" },
+            { content: "Life is what happens to you while you're busy making other plans. The future belongs to those who believe in the beauty of their dreams.", author: "John Lennon" }
+        ]
+        
+        const longQuotes = [
+            { content: "The greatest glory in living lies not in never falling, but in rising every time we fall. The way to get started is to quit talking and begin doing. Don't let yesterday take up too much of today. You learn more from failure than from success. Don't let it stop you. Failure builds character. If you are working on something exciting that you really care about, you don't have to be pushed. The vision pulls you.", author: "Nelson Mandela" },
+            { content: "Your time is limited, so don't waste it living someone else's life. Don't be trapped by dogma which is living with the results of other people's thinking. Don't let the noise of others' opinions drown out your own inner voice. And most important, have the courage to follow your heart and intuition. They somehow already know what you truly want to become.", author: "Steve Jobs" },
+            { content: "If life were predictable it would cease to be life, and be without flavor. The way to get started is to quit talking and begin doing. Don't let yesterday take up too much of today. You learn more from failure than from success. Don't let it stop you. Failure builds character. Life is what happens to you while you're busy making other plans.", author: "Eleanor Roosevelt" },
+            { content: "The future belongs to those who believe in the beauty of their dreams. Tell me and I forget. Teach me and I remember. Involve me and I learn. The best and most beautiful things in the world cannot be seen or even touched - they must be felt with the heart. It is during our darkest moments that we must focus to see the light.", author: "Helen Keller" },
+            { content: "If you look at what you have in life, you'll always have more. If you look at what you don't have in life, you'll never have enough. The way to get started is to quit talking and begin doing. Don't let yesterday take up too much of today. You learn more from failure than from success. Don't let it stop you. Failure builds character.", author: "Oprah Winfrey" }
+        ]
+        
+        let quotes
+        if (params.includes('maxLength=149')) {
+            quotes = shortQuotes
+        } else if (params.includes('minLength=300')) {
+            quotes = longQuotes
+        } else {
+            quotes = mediumQuotes
+        }
+        
+        // Return random quote from appropriate array
+        return quotes[Math.floor(Math.random() * quotes.length)]
+    },
 
-        const originalTLSValue = process.env['NODE_TLS_REJECT_UNAUTHORIZED']
+    async getRandomQuote(socket, params, retryCount = 0) {
+        const maxRetries = 2
+        const quoteAPIURI = SHIP.QUOTE_API + params
+        const serverTyping = this // Store reference for recursive calls
 
-        process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0'
+        // Wrapper to ensure we ALWAYS emit something, even if there's an unexpected error
+        const emitFallbackSafely = () => {
+            try {
+                console.log(`Emitting fallback quote (safety net)`)
+                const fallbackQuote = serverTyping.getFallbackQuote(params)
+                if (socket && socket.connected) {
+                    socket.emit('sendQuote', fallbackQuote)
+                    console.log(`✓ Fallback quote emitted via safety net`)
+                } else {
+                    console.error(`Socket not connected, cannot emit fallback`)
+                }
+            } catch (e) {
+                console.error(`CRITICAL: Safety net also failed:`, e)
+            }
+        }
+
+        // Check if external API is disabled via environment variable
+        if (!SHIP.USE_QUOTE_API) {
+            console.log('External quote API disabled (USE_QUOTE_API=false), using fallback quote')
+            emitFallbackSafely()
+            return
+        }
+
+        // Handle certificate validation bypass if needed (for CERT_HAS_EXPIRED issues)
+        // This is a workaround - updating CA certificates in Dockerfile is the proper fix
+        const originalTLSReject = process.env.NODE_TLS_REJECT_UNAUTHORIZED
+        if (process.env.ALLOW_INSECURE_TLS === 'true') {
+            console.warn('⚠️  WARNING: TLS certificate validation bypassed (ALLOW_INSECURE_TLS=true)')
+            process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+        }
 
         try {
-
-            const quoteAPIURI = SHIP.QUOTE_API + params
-
-            const response = await fetch(quoteAPIURI)
+            console.log(`Attempting to fetch quote from API: ${quoteAPIURI} (attempt ${retryCount + 1})`)
+            
+            // Show loading indicator on first attempt
+            if (retryCount === 0) {
+                socket.emit('quoteLoading', { message: 'Fetching quote from API...' })
+            }
+            
+            // Use https module directly if ALLOW_INSECURE_TLS is set (fetch doesn't support custom agents)
+            let response
+            if (process.env.ALLOW_INSECURE_TLS === 'true') {
+                // Use https module with custom agent that bypasses certificate validation
+                const httpsAgent = new https.Agent({ rejectUnauthorized: false })
+                response = await new Promise((resolve, reject) => {
+                    const url = new URL(quoteAPIURI)
+                    const options = {
+                        hostname: url.hostname,
+                        port: url.port || 443,
+                        path: url.pathname + url.search,
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'User-Agent': 'Ducks-Game-Server/1.0'
+                        },
+                        agent: httpsAgent
+                    }
+                    
+                    const timeout = setTimeout(() => {
+                        req.destroy()
+                        reject(new Error('Request timeout'))
+                    }, 10000)
+                    
+                    const req = https.request(options, (res) => {
+                        clearTimeout(timeout)
+                        let data = ''
+                        res.on('data', chunk => data += chunk)
+                        res.on('end', () => {
+                            resolve({
+                                ok: res.statusCode >= 200 && res.statusCode < 300,
+                                status: res.statusCode,
+                                statusText: res.statusMessage,
+                                json: async () => JSON.parse(data)
+                            })
+                        })
+                    })
+                    
+                    req.on('error', (error) => {
+                        clearTimeout(timeout)
+                        reject(error)
+                    })
+                    
+                    req.end()
+                })
+            } else {
+                // Use standard fetch
+                const controller = new AbortController()
+                const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+                
+                response = await fetch(quoteAPIURI, {
+                    signal: controller.signal,
+                    headers: {
+                        'Accept': 'application/json',
+                        'User-Agent': 'Ducks-Game-Server/1.0'
+                    }
+                })
+                
+                clearTimeout(timeoutId)
+            }
+            
+            // Restore original TLS setting
+            if (originalTLSReject !== undefined) {
+                process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalTLSReject
+            } else if (process.env.ALLOW_INSECURE_TLS === 'true') {
+                delete process.env.NODE_TLS_REJECT_UNAUTHORIZED
+            }
             
             if (!response.ok) {
-                console.log('Error fetching quote')
-            } else {
-                const quoteData = await response.json()
-                //console.log('Quote retrieved for socket ', socket.user.username)
-                socket.emit('sendQuote', quoteData)
+                // Log the error for debugging
+                console.error(`Quote API returned ${response.status} ${response.statusText} for ${quoteAPIURI}`)
+                
+                // Retry on server errors (5xx) or rate limiting (429)
+                if ((response.status >= 500 || response.status === 429) && retryCount < maxRetries) {
+                    console.log(`Retrying quote API request (attempt ${retryCount + 1}/${maxRetries})...`)
+                    // Emit retry status to client for visual feedback
+                    socket.emit('quoteRetrying', { 
+                        attempt: retryCount + 1, 
+                        maxRetries: maxRetries,
+                        error: `HTTP ${response.status}`
+                    })
+                    await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))) // Exponential backoff
+                    return serverTyping.getRandomQuote(socket, params, retryCount + 1)
+                }
+                
+                // Use fallback quote after retries exhausted
+                console.log(`Using fallback quote after ${response.status} error`)
+                const fallbackQuote = serverTyping.getFallbackQuote(params)
+                console.log(`Emitting fallback quote: ${fallbackQuote.content.substring(0, 50)}...`)
+                socket.emit('sendQuote', fallbackQuote)
+                return
             }
+            
+            const quoteData = await response.json()
+            
+            // Validate quote data structure
+            if (!quoteData || !quoteData.content) {
+                console.error('Invalid quote data received:', JSON.stringify(quoteData).substring(0, 100))
+                
+                // Retry if we got invalid data
+                if (retryCount < maxRetries) {
+                    console.log(`Retrying quote API request due to invalid data (attempt ${retryCount + 1}/${maxRetries})...`)
+                    // Emit retry status to client for visual feedback
+                    socket.emit('quoteRetrying', { 
+                        attempt: retryCount + 1, 
+                        maxRetries: maxRetries,
+                        error: 'Invalid data received'
+                    })
+                    await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
+                    return serverTyping.getRandomQuote(socket, params, retryCount + 1)
+                }
+                
+                // Use fallback quote after retries exhausted
+                console.log('Using fallback quote after invalid data')
+                const fallbackQuote = serverTyping.getFallbackQuote(params)
+                console.log(`Emitting fallback quote: ${fallbackQuote.content.substring(0, 50)}...`)
+                socket.emit('sendQuote', fallbackQuote)
+                return
+            }
+            
+            // Success! Send the quote
+            console.log(`✓ Quote retrieved successfully from API for ${socket.user?.username || 'unknown'}`)
+            console.log(`Emitting quote to socket: ${quoteData.content.substring(0, 50)}...`)
+            socket.emit('sendQuote', quoteData)
         } catch (error) {
-            console.error('Error:', error);
-        } finally {
-            process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = originalTLSValue
+            // Log detailed error information
+            const errorName = error.name || 'Unknown'
+            const errorMessage = error.message || String(error)
+            // Check error.code, error.cause.code, and error.errno for the error code
+            const errorCode = error.code || error.cause?.code || error.errno || 'N/A'
+            
+            // Enhanced error logging for diagnostics
+            console.error(`Quote API error: ${errorName} - ${errorMessage}`)
+            console.error(`Error code: ${errorCode}`)
+            console.error(`API URL attempted: ${quoteAPIURI}`)
+            console.error(`Retry count: ${retryCount}/${maxRetries}`)
+            
+            // Log specific error types for debugging (check certificate errors first)
+            if (errorCode === 'CERT_HAS_EXPIRED' || errorMessage.includes('certificate has expired') || error.cause?.code === 'CERT_HAS_EXPIRED') {
+                console.error(`DIAGNOSIS: SSL Certificate expired - Docker container may have outdated CA certificates`)
+                console.error(`SOLUTION 1: Rebuild Docker image (CA certificates updated in Dockerfile)`)
+                console.error(`SOLUTION 2: Set USE_QUOTE_API=false in Railway to use fallback quotes`)
+                console.error(`SOLUTION 3: Set ALLOW_INSECURE_TLS=true in Railway (INSECURE - only for testing)`)
+            } else if (errorMessage.includes('fetch failed') && errorCode !== 'CERT_HAS_EXPIRED' && error.cause?.code !== 'CERT_HAS_EXPIRED') {
+                console.error(`DIAGNOSIS: Network failure - Railway may be blocking external API requests`)
+                console.error(`SOLUTION: Set USE_QUOTE_API=false in Railway environment variables to use fallback quotes`)
+            }
+            if (errorCode === 'ENOTFOUND') {
+                console.error(`DIAGNOSIS: DNS resolution failed - cannot resolve api.quotable.io`)
+            }
+            if (errorCode === 'ECONNREFUSED') {
+                console.error(`DIAGNOSIS: Connection refused - API server may be down or blocking Railway IPs`)
+            }
+            if (errorName === 'AbortError') {
+                console.error(`DIAGNOSIS: Request timed out after 10 seconds`)
+            }
+            
+            if (error.cause) {
+                console.error(`Error cause:`, error.cause)
+            }
+            if (error.stack) {
+                console.error(`Error stack:`, error.stack.substring(0, 200))
+            }
+            
+            // Restore TLS setting in case of error
+            if (originalTLSReject !== undefined) {
+                process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalTLSReject
+            } else if (process.env.ALLOW_INSECURE_TLS === 'true') {
+                delete process.env.NODE_TLS_REJECT_UNAUTHORIZED
+            }
+            
+            // Check if this is a retryable error
+            const isRetryable = errorName === 'AbortError' || 
+                               errorCode === 'ECONNREFUSED' || 
+                               errorCode === 'ENOTFOUND' || 
+                               errorCode === 'ETIMEDOUT' ||
+                               errorCode === 'CERT_HAS_EXPIRED' ||
+                               errorMessage.includes('fetch failed') ||
+                               errorMessage.includes('network') ||
+                               errorMessage.includes('timeout') ||
+                               errorMessage.includes('certificate')
+            
+            // Retry on network errors
+            if (isRetryable && retryCount < maxRetries) {
+                console.log(`Retrying quote API request after ${errorName || errorCode} (attempt ${retryCount + 1}/${maxRetries})...`)
+                // Emit retry status to client for visual feedback
+                socket.emit('quoteRetrying', { 
+                    attempt: retryCount + 1, 
+                    maxRetries: maxRetries,
+                    error: errorMessage.substring(0, 50)
+                })
+                await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))) // Exponential backoff
+                return serverTyping.getRandomQuote(socket, params, retryCount + 1)
+            }
+            
+            // Always use fallback quote if API fails (after retries or immediately for non-retryable errors)
+            console.log(`Using fallback quote after ${errorName || errorCode || 'unknown'} error`)
+            emitFallbackSafely()
         }
     } 
 }
@@ -697,6 +957,7 @@ io.on('connection', (socket) => {
 
     //Typing minigame client requests
     socket.on('requestQuote', (params) => {
+        console.log(`Quote request received from ${socket.user?.username || 'unknown'} with params: ${params}`)
         serverTyping.getRandomQuote(socket, params)
     })
 

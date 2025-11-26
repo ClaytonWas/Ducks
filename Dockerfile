@@ -1,12 +1,14 @@
 # Multi-stage build for production
 FROM node:20.17.0-bullseye as base
 
-# Install dependencies for sqlite3
+# Install dependencies for sqlite3 and update CA certificates
 RUN apt-get update && apt-get install -y \
     build-essential \
     python3 \
     sqlite3 \
     libsqlite3-dev \
+    ca-certificates \
+    && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Build client

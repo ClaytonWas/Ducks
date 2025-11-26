@@ -258,17 +258,101 @@ function typeQuote(quoteSize) {
 
     let typingGame = new Typing(socket)
 
-    typingGame.requestQuote(quoteSize)
+    // Helper function to show loading/retry message
+    const showLoadingMessage = (message, isRetrying = false) => {
+        const quoteDisplay = document.getElementById('quoteDisplay')
+        if (quoteDisplay) {
+            const icon = isRetrying ? '🔄' : '⏳'
+            const color = isRetrying ? '#FF9800' : '#2196F3'
+            quoteDisplay.innerHTML = `
+                <div style="
+                    color: ${color};
+                    padding: 30px;
+                    text-align: center;
+                    font-size: 18px;
+                    font-weight: 600;
+                    background: linear-gradient(145deg, rgba(33, 150, 243, 0.1) 0%, rgba(33, 150, 243, 0.05) 100%);
+                    border-radius: 15px;
+                    border: 2px solid ${color};
+                    animation: pulse 1.5s ease-in-out infinite;
+                ">
+                    <div style="font-size: 48px; margin-bottom: 10px;">${icon}</div>
+                    <div>${message}</div>
+                </div>
+            `
+        }
+    }
 
-    socket.on('sendQuote', (quoteData) => {
-        //console.log(quoteData)
+    // Set up listener BEFORE sending request to avoid race condition
+    const quoteHandler = (quoteData) => {
+        console.log('Received quote data:', quoteData)
+
+        if (!quoteData || !quoteData.content) {
+            console.error('Invalid quote data received:', quoteData)
+            return
+        }
 
         typingGame.loadQuote(quoteData)
-
         typingGame.typeInput()
-    })
+        
+        // Remove all listeners after successful quote load
+        socket.off('sendQuote', quoteHandler)
+        socket.off('quoteLoading', loadingHandler)
+        socket.off('quoteRetrying', retryHandler)
+    }
 
+    // Loading handler
+    const loadingHandler = (data) => {
+        console.log('Loading quote:', data.message)
+        showLoadingMessage(data.message || 'Loading quote...', false)
+    }
+
+    // Retry handler
+    const retryHandler = (data) => {
+        console.log(`Retrying quote (attempt ${data.attempt}/${data.maxRetries}):`, data.error)
+        showLoadingMessage(
+            `Retrying... (${data.attempt}/${data.maxRetries})<br><small style="font-size: 14px; opacity: 0.8;">${data.error || 'Connection issue'}</small>`,
+            true
+        )
+    }
+
+    // Set up listeners
+    socket.on('sendQuote', quoteHandler)
+    socket.on('quoteLoading', loadingHandler)
+    socket.on('quoteRetrying', retryHandler)
+
+    // Show initial loading state
     Typing.showInterface()
+    showLoadingMessage('Requesting quote...', false)
+
+    // Then send the request
+    typingGame.requestQuote(quoteSize)
+
+    // Add timeout fallback - if no quote received in 15 seconds, show error
+    setTimeout(() => {
+        const quoteDisplay = document.getElementById('quoteDisplay')
+        if (quoteDisplay && !quoteDisplay.querySelector('.quote-display span')) {
+            console.error('Quote request timed out')
+            quoteDisplay.innerHTML = `
+                <div style="
+                    color: #D32F2F;
+                    padding: 30px;
+                    text-align: center;
+                    font-size: 18px;
+                    font-weight: 600;
+                    background: linear-gradient(145deg, rgba(211, 47, 47, 0.1) 0%, rgba(244, 67, 54, 0.05) 100%);
+                    border-radius: 15px;
+                    border: 2px solid #F44336;
+                ">
+                    <div style="font-size: 48px; margin-bottom: 10px;">⏱️</div>
+                    <div>Request timed out. Using fallback quote...</div>
+                </div>
+            `
+            socket.off('sendQuote', quoteHandler)
+            socket.off('quoteLoading', loadingHandler)
+            socket.off('quoteRetrying', retryHandler)
+        }
+    }, 15000)
 
 }
 
