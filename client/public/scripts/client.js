@@ -21,6 +21,9 @@ if (!token) {
     window.location.href = '/login'
 }
 
+// Local player ID will be set by the server when we connect
+// This avoids needing to decode the JWT client-side
+
 // Three.js Neccesities For Creating Game Worlds
 const scene = new THREE.Scene()
 const renderer = new THREE.WebGLRenderer()
@@ -96,8 +99,66 @@ socket.on("connect_error", (err) => {
     console.log(err.context)
 })
 
+// Function to initialize camera for local player (called when we have both ID and player data)
+// Defined outside socket handlers so it's accessible everywhere
+function initializeLocalPlayerCamera() {
+    console.log('initializeLocalPlayerCamera called:', {
+        localPlayerId,
+        hasPlayer: localPlayerId && playersInScene[localPlayerId],
+        cameraMode,
+        hasOrbitControls: !!orbitControls,
+        orbitControlsEnabled: orbitControls && orbitControls.enabled
+    })
+    
+    if (!localPlayerId) {
+        console.log('No localPlayerId yet')
+        return false
+    }
+    
+    if (!playersInScene[localPlayerId]) {
+        console.log('Player not in scene yet')
+        return false
+    }
+    
+    if (cameraMode !== 'follow') {
+        console.log('Camera mode is not follow:', cameraMode)
+        return false
+    }
+    
+    if (!orbitControls) {
+        console.log('OrbitControls not initialized yet')
+        return false
+    }
+    
+    const player = playersInScene[localPlayerId]
+    const offsetX = 0
+    const offsetY = 3
+    const offsetZ = 5
+    
+    camera.position.set(
+        player.x + offsetX,
+        player.y + offsetY,
+        player.z + offsetZ
+    )
+    orbitControls.target.set(player.x, player.y, player.z)
+    orbitControls.update()
+    console.log(`Camera initialized for local player: ${localPlayerId} at position (${player.x}, ${player.y}, ${player.z})`)
+    return true
+}
+
 socket.on('welcome', (message) => {
     console.log(message)
+})
+
+// Receive our player ID from the server (more reliable than decoding JWT)
+socket.on('yourPlayerId', (playerId) => {
+    localPlayerId = playerId
+    console.log(`Local player ID received from server: ${localPlayerId}`)
+    // Try to initialize camera if player data already exists
+    // Use setTimeout to ensure orbitControls might be initialized
+    setTimeout(() => {
+        initializeLocalPlayerCamera()
+    }, 200)
 })
 
 //TicTacToe mini-game methods
@@ -219,14 +280,68 @@ const MOVEMENT_THROTTLE_MS = 50 // Send movement updates max every 50ms
 let pendingMovement = null
 let isMouseDown = false
 let currentMovementPromise = null
+let lastContinuousMovementTime = 0
+const CONTINUOUS_MOVEMENT_THROTTLE_MS = 100 // Throttle continuous movement to every 100ms
 
-function handleMovement(point) {
+function handleMovement(point, isContinuousMovement = false) {
     const now = Date.now()
     
-    // Store the latest movement target
+    // Store the latest movement target (always update to latest)
     pendingMovement = point
     
-    // Throttle network updates
+    // Immediately move local player client-side for responsiveness (client-side prediction)
+    if (localPlayerId && playersInScene[localPlayerId]) {
+        const player = playersInScene[localPlayerId]
+        const currentPos = {x: player.x, y: player.y, z: player.z}
+        const distance = Math.sqrt(
+            Math.pow(point.x - currentPos.x, 2) + 
+            Math.pow(point.z - currentPos.z, 2)
+        )
+        
+        // For continuous movement, use very simple direct movement (no pathfinding)
+        if (isContinuousMovement) {
+            // Throttle continuous movement updates
+            if (now - lastContinuousMovementTime < CONTINUOUS_MOVEMENT_THROTTLE_MS) {
+                return
+            }
+            lastContinuousMovementTime = now
+            
+            // Skip if distance is too small (performance optimization - avoid unnecessary work)
+            if (distance < 0.1) {
+                // Don't send update for tiny movements - save network bandwidth
+                // Only send if this is a NEW target (different from last sent target)
+                // This prevents spam while still keeping server updated on actual movement changes
+                pendingMovement = null
+                return
+            }
+            
+            // For continuous movement, just use simple steering (it will handle obstacles)
+            movementSystem.masterMovement(localPlayerId, currentPos, point, true)
+        } else {
+            // Single click: use full A* pathfinding
+            // Cancel any previous movement when starting a new one
+            
+            // For single clicks, always send to server (even if movement is skipped)
+            // This ensures server knows about new movement targets, preventing stale positions
+            // But only if distance is meaningful (avoid spam for clicks on self)
+            if (distance >= 0.1) {
+                // Normal movement - will be sent via throttled update below
+                movementSystem.masterMovement(localPlayerId, currentPos, point, false)
+            } else {
+                // Very small movement - send current position to sync server, then clear
+                // This prevents server from having stale target when user clicks elsewhere
+                if (now - lastMovementTime >= MOVEMENT_THROTTLE_MS) {
+                    socket.emit('updatePlayerPosition', currentPos)
+                    lastMovementTime = now
+                }
+                pendingMovement = null
+                return
+            }
+        }
+    }
+    
+    // Send movement update with throttling (performance optimization)
+    // Only send if enough time has passed since last update
     if (now - lastMovementTime >= MOVEMENT_THROTTLE_MS) {
         if (pendingMovement) {
             socket.emit('updatePlayerPosition', pendingMovement)
@@ -241,63 +356,53 @@ function onMouseClick(event) {
     mouse.y = -((event.clientY - gameWindow.getBoundingClientRect().top) / gameWindow.clientHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera)
 
-    // Check transitions first - they take priority
-    // First try direct mesh intersection
-    let intersectsTransitions = raycaster.intersectObjects(transitions.children, true)
+    // Check in priority order: transitions first, then objects, then floors
+    // This ensures we check the most important things first
     
-    // If no direct hit, check if ray passes through any transition's bounding box
-    // This makes the entire door clickable, not just where the mesh surface is
-    if (intersectsTransitions.length === 0) {
-        const ray = raycaster.ray
-        const transitionHits = []
-        
-        transitions.children.forEach(transition => {
-            if (transition.userData.transition) {
-                // Get bounding box in world space
-                transition.updateMatrixWorld(true)
-                const box = new THREE.Box3().setFromObject(transition)
-                // Check if ray intersects the bounding box
-                const intersectionPoint = new THREE.Vector3()
-                const isIntersecting = ray.intersectBox(box, intersectionPoint)
-                if (isIntersecting) {
-                    // Create a fake intersection result
-                    transitionHits.push({
-                        object: transition,
-                        distance: camera.position.distanceTo(intersectionPoint),
-                        point: intersectionPoint
-                    })
-                }
-            }
-        })
-        
-        // Sort by distance to get closest
-        transitionHits.sort((a, b) => a.distance - b.distance)
-        intersectsTransitions = transitionHits
-    }
-    
+    // 1. Check transitions first (they take priority)
+    let intersectsTransitions = raycaster.intersectObjects(transitions.children, false)
     if (intersectsTransitions.length > 0) {
-        const onClick = intersectsTransitions[0].object.userData.transition
-
-        // For Client Side On-Clicks
-        if (onClick == "loadTypeRacer") {
-            Typing.showTypingOptions()
-        } else if (onClick == "loadTicTacToe") {
-            TicTacToe.showBoards()
-        } else {
-            socket.emit(onClick)
+        const hitObject = intersectsTransitions[0].object
+        if (hitObject.userData && hitObject.userData.transition) {
+            const onClick = hitObject.userData.transition
+            // For Client Side On-Clicks
+            if (onClick == "loadTypeRacer") {
+                Typing.showTypingOptions()
+            } else if (onClick == "loadTicTacToe") {
+                TicTacToe.showBoards()
+            } else {
+                socket.emit(onClick)
+            }
+            return
         }
-        return
     }
-
-    // Check objects - if clicking an object, don't move
-    const intersectsObjects = raycaster.intersectObjects(objects.children, true)
+    
+    // 2. Check objects - if ANY object is hit (with or without onClick), handle it
+    let intersectsObjects = raycaster.intersectObjects(objects.children, false)
     if (intersectsObjects.length > 0) {
-        // Clicked on an object, don't do movement
+        const hitObject = intersectsObjects[0].object
+        
+        // If object has onClick, execute it
+        if (hitObject.userData && hitObject.userData.onClick) {
+            const onClick = hitObject.userData.onClick
+            // For Client Side On-Clicks
+            if (onClick == "loadTypeRacer") {
+                Typing.showTypingOptions()
+            } else if (onClick == "loadTicTacToe") {
+                TicTacToe.showBoards()
+            } else {
+                socket.emit(onClick)
+            }
+            return
+        }
+        
+        // Object has no onClick - do nothing, block all movement
         return
     }
-
-    // Check floors for movement
-    const intersectsFloors = raycaster.intersectObjects(floors.children, true)
+    
+    // 3. Only check floors if no objects were hit
+    // This prevents movement when clicking through objects
+    let intersectsFloors = raycaster.intersectObjects(floors.children, false)
     if (intersectsFloors.length > 0) {
         const point = intersectsFloors[0].point
         if (point) {
@@ -318,7 +423,8 @@ function onMouseMove(event) {
     if (intersectsFloors.length > 0) {
         const point = intersectsFloors[0].point
         if (point) {
-            handleMovement(point)
+            // Use simple steering for continuous movement (much faster than A*)
+            handleMovement(point, true)
         }
     }
 }
@@ -377,16 +483,22 @@ function animate() {
     
     // In follow mode, update OrbitControls target to player position
     // This allows the camera to orbit around the player while letting users control zoom/position
+    // WOW-style: User controls camera angle and distance, camera target follows player
     if (cameraMode === 'follow' && localPlayerId && playersInScene[localPlayerId]) {
         const player = playersInScene[localPlayerId]
         
         // Update OrbitControls target to player position in follow mode
-        // This makes the camera orbit around the player, but doesn't reset camera position
+        // This makes the camera orbit around the player, but doesn't reset camera position/angle
         if (orbitControls && orbitControls.enabled) {
             // Smoothly update the target to follow the player
-            orbitControls.target.x += (player.x - orbitControls.target.x) * 0.1
-            orbitControls.target.y += (player.y - orbitControls.target.y) * 0.1
-            orbitControls.target.z += (player.z - orbitControls.target.z) * 0.1
+            // This allows the camera to orbit around the player from any angle
+            const targetLerpFactor = 0.1
+            orbitControls.target.x += (player.x - orbitControls.target.x) * targetLerpFactor
+            orbitControls.target.y += (player.y - orbitControls.target.y) * targetLerpFactor
+            orbitControls.target.z += (player.z - orbitControls.target.z) * targetLerpFactor
+            
+            // Don't force camera position - let user control it freely with orbit controls
+            // The target will follow the player, but camera angle/distance is user-controlled
         }
     }
     
@@ -404,6 +516,19 @@ function animate() {
 }
 
 function instantiatePlayer(id, name, shape, color, position) {
+    // Remove existing player if it exists (prevents ghosting)
+    if (playersInScene[id]) {
+        const existingPlayer = playersInScene[id]
+        scene.remove(existingPlayer.mesh)
+        if (existingPlayer.mesh.geometry) {
+            existingPlayer.mesh.geometry.dispose()
+        }
+        if (existingPlayer.mesh.material) {
+            existingPlayer.mesh.material.dispose()
+        }
+        delete playersInScene[id]
+    }
+    
     console.log(shape)
     let clientPlayer = new Player(id, name, shape, color, position.x, position.y, position.z)
     playersInScene[id] = clientPlayer
@@ -577,9 +702,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Handle window resize
     window.addEventListener('resize', () => {
         initializeCanvas()
-        if (orbitControls) {
-            orbitControls.handleResize()
-        }
+        // OrbitControls automatically handles resize, no need to call handleResize
     })
     
     // Initialize OrbitControls - always enabled, uses right mouse button
@@ -589,9 +712,10 @@ document.addEventListener('DOMContentLoaded', () => {
         orbitControls.dampingFactor = 0.05
         orbitControls.enableZoom = true
         orbitControls.enablePan = true
-        orbitControls.minDistance = 5
-        orbitControls.maxDistance = 100
-        orbitControls.maxPolarAngle = Math.PI / 2 // Prevent camera from going below ground
+        orbitControls.minDistance = 2 // Allow zooming in close
+        orbitControls.maxDistance = 500 // Allow zooming much further out (WOW-style)
+        orbitControls.maxPolarAngle = Math.PI // Allow full 360 degree rotation (WOW-style)
+        orbitControls.minPolarAngle = 0 // Allow looking straight up and down
         
         // Configure to use right mouse button for rotation
         orbitControls.mouseButtons = {
@@ -606,6 +730,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // Always enabled - works in both modes
         orbitControls.enabled = true
         console.log('OrbitControls initialized successfully')
+        
+        // Try to initialize camera for local player if data is already available
+        if (localPlayerId && playersInScene[localPlayerId] && cameraMode === 'follow') {
+            setTimeout(() => {
+                initializeLocalPlayerCamera()
+            }, 100)
+        }
     } catch (error) {
         console.error('Failed to initialize OrbitControls:', error)
     }
@@ -645,21 +776,59 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 // Switch to follow mode
                 cameraMode = 'follow'
+                console.log('Switching to follow mode, localPlayerId:', localPlayerId, 'playersInScene keys:', Object.keys(playersInScene))
                 
-                // Set OrbitControls target to player position if available
-                if (orbitControls && localPlayerId && playersInScene[localPlayerId]) {
-                    const player = playersInScene[localPlayerId]
-                    orbitControls.target.set(player.x, player.y, player.z)
-                    // Set initial camera position behind and above player (but user can adjust)
-                    const offsetX = 0
-                    const offsetY = 3
-                    const offsetZ = 5
-                    camera.position.set(
-                        player.x + offsetX,
-                        player.y + offsetY,
-                        player.z + offsetZ
-                    )
-                    orbitControls.update()
+                // Function to initialize camera to follow player
+                const tryInitializeFollow = () => {
+                    let playerToFollow = null
+                    let playerIdToFollow = localPlayerId
+                    
+                    // If we have localPlayerId, use it
+                    if (localPlayerId && playersInScene[localPlayerId]) {
+                        playerToFollow = playersInScene[localPlayerId]
+                    } else {
+                        // Otherwise, try to find any player in the scene (fallback)
+                        const playerIds = Object.keys(playersInScene)
+                        if (playerIds.length > 0) {
+                            playerIdToFollow = playerIds[0]
+                            playerToFollow = playersInScene[playerIdToFollow]
+                            console.log('Using fallback player:', playerIdToFollow)
+                        }
+                    }
+                    
+                    if (playerToFollow && orbitControls) {
+                        // Set initial camera position behind player (user can change it)
+                        const offsetX = 0
+                        const offsetY = 3
+                        const offsetZ = 5
+                        camera.position.set(
+                            playerToFollow.x + offsetX,
+                            playerToFollow.y + offsetY,
+                            playerToFollow.z + offsetZ
+                        )
+                        // Set target to player - user can then orbit/zoom freely
+                        orbitControls.target.set(playerToFollow.x, playerToFollow.y, playerToFollow.z)
+                        orbitControls.update()
+                        console.log('Camera set to follow player via button (WOW-style controls enabled)')
+                        return true
+                    }
+                    return false
+                }
+                
+                // Try immediately
+                if (!tryInitializeFollow()) {
+                    // If not available, wait a bit and try again
+                    console.log('Player data not ready, waiting...')
+                    setTimeout(() => {
+                        if (!tryInitializeFollow()) {
+                            console.warn('Could not initialize follow camera - missing data:', {
+                                localPlayerId,
+                                hasPlayer: localPlayerId && playersInScene[localPlayerId],
+                                hasOrbitControls: !!orbitControls,
+                                playersInScene: Object.keys(playersInScene)
+                            })
+                        }
+                    }, 500)
                 }
                 
                 cameraToggle.textContent = '🌐'
@@ -687,111 +856,191 @@ document.addEventListener('DOMContentLoaded', () => {
         } 
     })
 
+    // Geometry and Material caches for performance (MMO-style optimization)
+    const geometryCache = new Map() // Reuse geometries for same-sized objects
+    const materialCache = new Map() // Reuse materials for same textures/colors
+    
+    const getGeometryKey = (type, geometry) => {
+        if (type === "box") {
+            return `box_${geometry.width}_${geometry.height}_${geometry.depth}`
+        } else if (type === "plane") {
+            return `plane_${geometry.width}_${geometry.height}`
+        }
+        return null
+    }
+    
+    const getCachedGeometry = (type, geometry) => {
+        const key = getGeometryKey(type, geometry)
+        if (!key) return null
+        
+        if (!geometryCache.has(key)) {
+            let newGeometry
+            if (type === "box") {
+                newGeometry = new THREE.BoxGeometry(geometry.width, geometry.height, geometry.depth)
+            } else if (type === "plane") {
+                newGeometry = new THREE.PlaneGeometry(geometry.width, geometry.height)
+            }
+            geometryCache.set(key, newGeometry)
+        }
+        return geometryCache.get(key)
+    }
+    
+    const getCachedMaterial = (color, textureName = null, textureMap = null) => {
+        // Only share materials if they have the EXACT same texture file (or same color if no texture)
+        // If texture exists, use texture name as key (color is ignored when texture is present)
+        // If no texture, use color as key
+        const texture = textureName && textureMap ? textureMap.get(textureName) : null
+        const key = texture ? `tex_${textureName}` : `col_${color}`
+        
+        if (!materialCache.has(key)) {
+            const material = texture 
+                ? new THREE.MeshStandardMaterial({ map: texture })
+                : new THREE.MeshStandardMaterial({ color: color })
+            materialCache.set(key, material)
+        }
+        return materialCache.get(key)
+    }
+
     socket.on('recieveWorldData', (world) => {
         emptyGroup(floors)
         emptyGroup(objects)
         emptyGroup(transitions)
+        
+        // Clear material cache when loading new scene (textures might change)
+        materialCache.clear()
+        
         let textureLoader = new THREE.TextureLoader()
         let floorData = world.floors
         let objectData = world.objects
         let transitionsData = world.transitions
-
+        
+        // Pre-load all textures first (MMO-style: load assets before creating meshes)
+        const texturePromises = new Map()
+        const allTextures = new Set()
+        
         floorData.forEach(floor => {
-            let Geometry = new THREE.PlaneGeometry(floor.geometry.width, floor.geometry.height)
-            let Material = new THREE.MeshStandardMaterial({ color: floor.color })
-            
-            if (floor.material) {
-                textureLoader.load(
-                    `${host}/textures/${floor.material}`, 
-                    (texture) => {
-                        Material = new THREE.MeshStandardMaterial({ map: texture })
-                        console.log(`${floor.material} loaded.`)
-                        let Mesh = new THREE.Mesh(Geometry, Material)
-                        Mesh.position.set(floor.position.x, floor.position.y, floor.position.z)
-                        Mesh.rotation.set(floor.rotation.x, floor.rotation.y, floor.rotation.z)
-                        floors.add(Mesh)
-                    },
-                    (error) => { 
-                        console.log(`Could not find ${floor.material} in texture set.`) 
-                    }
-                )
-            } else {
-                // If no material is provided, use the default colour
-                let Mesh = new THREE.Mesh(Geometry, Material)
-                Mesh.position.set(floor.position.x, floor.position.y, floor.position.z)
-                Mesh.rotation.set(floor.rotation.x, floor.rotation.y, floor.rotation.z)
-                floors.add(Mesh)
-            }
+            if (floor.material) allTextures.add(floor.material)
         })
-
         objectData.forEach(object => {
-            if (object.type === "box") {
-                var Geometry = new THREE.BoxGeometry(object.geometry.width, object.geometry.height, object.geometry.depth)
-            }
-            let Material = new THREE.MeshStandardMaterial({ color: object.color })
-
-            if (object.material) {
-                textureLoader.load(
-                    `${host}/textures/${object.material}`, 
-                    (texture) => {
-                        Material = new THREE.MeshStandardMaterial({ map: texture })
-                        console.log(`${object.material} loaded.`)
-                        let Mesh = new THREE.Mesh(Geometry, Material)
-                        Mesh.position.set(object.position.x, object.position.y, object.position.z)
-                        Mesh.rotation.set(object.rotation.x, object.rotation.y, object.rotation.z)
-                        objects.add(Mesh)
-                    },
-                    (error) => { 
-                        console.log(`Could not find ${object.material} in texture set.`) 
-                    }
-                )
-            } else {
-                // If no material is provided, use the default colour
-                let Mesh = new THREE.Mesh(Geometry, Material)
-                Mesh.position.set(object.position.x, object.position.y, object.position.z)
-                Mesh.rotation.set(object.rotation.x, object.rotation.y, object.rotation.z)
-                objects.add(Mesh)
-            }
+            if (object.material) allTextures.add(object.material)
         })
-
         transitionsData.forEach(transition => {
-            if (transition.type === "box") {
-                var Geometry = new THREE.BoxGeometry(transition.geometry.width, transition.geometry.height, transition.geometry.depth)
-            }
-            let Material = new THREE.MeshStandardMaterial({ color: transition.color })
-
-            
-            if (transition.material) {
+            if (transition.material) allTextures.add(transition.material)
+        })
+        
+        // Load all textures in parallel
+        allTextures.forEach(textureName => {
+            const promise = new Promise((resolve) => {
                 textureLoader.load(
-                    `${host}/textures/${transition.material}`, 
-                    (texture) => {
-                        Material = new THREE.MeshStandardMaterial({ map: texture })
-                        console.log(`${transition.material} loaded.`)
-                        let Mesh = new THREE.Mesh(Geometry, Material)
-                        Mesh.position.set(transition.position.x, transition.position.y, transition.position.z)
-                        Mesh.rotation.set(transition.rotation.x, transition.rotation.y, transition.rotation.z)
-                        Mesh.userData.transition = transition.onClick            
-                        transitions.add(Mesh)
-                    },
-                    (error) => { 
-                        console.log(`Could not find ${transition.material} in texture set.`) 
+                    `${host}/textures/${textureName}`,
+                    (texture) => resolve({ name: textureName, texture: texture }),
+                    undefined,
+                    (error) => {
+                        console.log(`Could not find ${textureName} in texture set.`)
+                        resolve({ name: textureName, texture: null })
                     }
                 )
-            } else {
-                // If no material is provided, use the default colour
-                let Mesh = new THREE.Mesh(Geometry, Material)
-                Mesh.position.set(transition.position.x, transition.position.y, transition.position.z)
-                Mesh.rotation.set(transition.rotation.x, transition.rotation.y, transition.rotation.z)
-                Mesh.userData.transition = transition.onClick            
-                transitions.add(Mesh)
+            })
+            texturePromises.set(textureName, promise)
+        })
+        
+        // Wait for all textures to load, then create meshes progressively
+        Promise.all(Array.from(texturePromises.values())).then((textureResults) => {
+            const textureMap = new Map()
+            textureResults.forEach(result => {
+                if (result.texture) {
+                    textureMap.set(result.name, result.texture)
+                }
+            })
+            
+            // Create meshes progressively using requestAnimationFrame (prevents blocking)
+            let itemIndex = 0
+            const allItems = [
+                ...floorData.map(item => ({ type: 'floor', data: item })),
+                ...objectData.map(item => ({ type: 'object', data: item })),
+                ...transitionsData.map(item => ({ type: 'transition', data: item }))
+            ]
+            
+            const createNextBatch = () => {
+                const batchSize = 5 // Create 5 meshes per frame
+                const endIndex = Math.min(itemIndex + batchSize, allItems.length)
+                
+                for (let i = itemIndex; i < endIndex; i++) {
+                    const item = allItems[i]
+                    
+                    if (item.type === 'floor') {
+                        const floor = item.data
+                        const geometry = getCachedGeometry('plane', floor.geometry)
+                        // Pass texture NAME (string) and textureMap so cache key is based on filename
+                        const material = getCachedMaterial(floor.color, floor.material, textureMap)
+                        
+                        const mesh = new THREE.Mesh(geometry, material)
+                        mesh.position.set(floor.position.x, floor.position.y, floor.position.z)
+                        mesh.rotation.set(floor.rotation.x, floor.rotation.y, floor.rotation.z)
+                        floors.add(mesh)
+                    } else if (item.type === 'object') {
+                        const object = item.data
+                        if (object.type === "box") {
+                            const geometry = getCachedGeometry('box', object.geometry)
+                            // Pass texture NAME (string) and textureMap so cache key is based on filename
+                            const material = getCachedMaterial(object.color, object.material, textureMap)
+                            
+                            const mesh = new THREE.Mesh(geometry, material)
+                            mesh.position.set(object.position.x, object.position.y, object.position.z)
+                            mesh.rotation.set(object.rotation.x, object.rotation.y, object.rotation.z)
+                            if (object.onClick) {
+                                mesh.userData.onClick = object.onClick
+                            }
+                            objects.add(mesh)
+                        }
+                    } else if (item.type === 'transition') {
+                        const transition = item.data
+                        if (transition.type === "box") {
+                            const geometry = getCachedGeometry('box', transition.geometry)
+                            // Pass texture NAME (string) and textureMap so cache key is based on filename
+                            const material = getCachedMaterial(transition.color, transition.material, textureMap)
+                            
+                            const mesh = new THREE.Mesh(geometry, material)
+                            mesh.position.set(transition.position.x, transition.position.y, transition.position.z)
+                            mesh.rotation.set(transition.rotation.x, transition.rotation.y, transition.rotation.z)
+                            mesh.userData.transition = transition.onClick
+                            transitions.add(mesh)
+                        }
+                    }
+                }
+                
+                itemIndex = endIndex
+                
+                if (itemIndex < allItems.length) {
+                    // Continue loading next batch on next frame
+                    requestAnimationFrame(createNextBatch)
+                } else {
+                    // All meshes created, add groups to scene
+                    scene.add(floors)
+                    scene.add(objects)
+                    scene.add(transitions)
+                    console.log('Scene loaded with optimized geometry/material caching')
+                }
             }
+            
+            // Start progressive loading
+            createNextBatch()
         })
 
-        scene.add(floors)
-        scene.add(objects)
-        scene.add(transitions)
-
+        // Clean up all existing players before resetting
+        for (const [id, player] of Object.entries(playersInScene)) {
+            scene.remove(player.mesh)
+            if (player.mesh.geometry) {
+                player.mesh.geometry.dispose()
+            }
+            if (player.mesh.material) {
+                player.mesh.material.dispose()
+            }
+        }
+        
         // Reinitalize playersInScene and movementSystem
+        // NOTE: Don't reset localPlayerId - it should persist across scene changes
+        // The server will re-send yourPlayerId on scene change
         playersInScene = {}
         movementSystem.updateSceneAndPlayers(scene, playersInScene)
         
@@ -808,26 +1057,39 @@ document.addEventListener('DOMContentLoaded', () => {
     })
 
     socket.on('sendWorldTime', (date) => {
-        let gameServerTime = new Date(date)
-        // Format as "hh:mm AM/PM" (no seconds)
-        let hours = gameServerTime.getHours()
-        let minutes = gameServerTime.getMinutes()
-        let ampm = hours >= 12 ? 'PM' : 'AM'
-        hours = hours % 12
-        hours = hours ? hours : 12 // 0 should be 12
-        minutes = minutes < 10 ? '0' + minutes : minutes
-        let gameServerTimeString = `${hours}:${minutes} ${ampm}`
-        document.getElementById('worldDateTime').textContent = gameServerTimeString
+        try {
+            let gameServerTime = new Date(date)
+            // Format as "hh:mm AM/PM" (no seconds)
+            let hours = gameServerTime.getHours()
+            let minutes = gameServerTime.getMinutes()
+            let ampm = hours >= 12 ? 'PM' : 'AM'
+            hours = hours % 12
+            hours = hours ? hours : 12 // 0 should be 12
+            minutes = minutes < 10 ? '0' + minutes : minutes
+            let gameServerTimeString = `${hours}:${minutes} ${ampm}`
+            
+            const worldDateTimeElement = document.getElementById('worldDateTime')
+            if (worldDateTimeElement) {
+                worldDateTimeElement.textContent = gameServerTimeString
+            }
 
-        let currentHour = gameServerTime.getHours()
-        if (currentHour > 12 && currentHour < 20) { //between 1-7pm
-            currentHour = currentHour % 12
-            directionalLight.intensity = currentHour/12 + .3
-        } else if (currentHour >= 20) {
-            currentHour = currentHour % 12
-            directionalLight.intensity = currentHour/12
-        } else {
-            directionalLight.intensity = currentHour/12
+            let currentHour = gameServerTime.getHours()
+            if (currentHour > 12 && currentHour < 20) { //between 1-7pm
+                currentHour = currentHour % 12
+                directionalLight.intensity = currentHour/12 + .3
+            } else if (currentHour >= 20) {
+                currentHour = currentHour % 12
+                directionalLight.intensity = currentHour/12
+            } else {
+                directionalLight.intensity = currentHour/12
+            }
+        } catch (error) {
+            console.error('Error processing world time:', error)
+            // Set a default time display if there's an error
+            const worldDateTimeElement = document.getElementById('worldDateTime')
+            if (worldDateTimeElement) {
+                worldDateTimeElement.textContent = '--:-- --'
+            }
         }
     })
 
@@ -836,55 +1098,21 @@ document.addEventListener('DOMContentLoaded', () => {
     
     socket.on('sendPlayerData', (player) => {
         instantiatePlayer(player.id, player.username, player.shape, player.color, player.position)
-        console.log(`${player.username} added to my scene`)
+        console.log(`${player.username} added to my scene (ID: ${player.id}, localPlayerId: ${localPlayerId})`)
         
-        // Set local player ID on first player received (usually ourselves)
-        if (!localPlayerId) {
-            localPlayerId = player.id
-            console.log(`Local player ID set to: ${localPlayerId}`)
-            // Set initial camera position in follow mode when player first loads
-            if (cameraMode === 'follow' && orbitControls && orbitControls.enabled) {
-                const offsetX = 0
-                const offsetY = 3
-                const offsetZ = 5
-                camera.position.set(
-                    player.position.x + offsetX,
-                    player.position.y + offsetY,
-                    player.position.z + offsetZ
-                )
-                orbitControls.target.set(player.position.x, player.position.y, player.position.z)
-                orbitControls.update()
-            }
+        // If this is the local player, try to initialize camera
+        if (localPlayerId && player.id === localPlayerId) {
+            console.log(`This is the local player! Initializing camera...`)
+            // Use setTimeout to ensure orbitControls is initialized
+            setTimeout(() => {
+                initializeLocalPlayerCamera()
+            }, 100)
+        } else if (!localPlayerId) {
+            console.warn(`Received player data but localPlayerId is still null. Player ID: ${player.id}`)
         }
     })
     
-    // Refine local player detection when we move - track which player moves
-    const originalEmit = socket.emit.bind(socket)
-    socket.emit = function(event, ...args) {
-        if (event === 'updatePlayerPosition' && !localPlayerId) {
-            // If we don't have a local player ID yet, find the closest player to clicked point
-            const clickedPoint = args[0]
-            let closestPlayer = null
-            let closestDistance = Infinity
-            
-            for (const [id, player] of Object.entries(playersInScene)) {
-                const distance = Math.sqrt(
-                    Math.pow(player.x - clickedPoint.x, 2) +
-                    Math.pow(player.z - clickedPoint.z, 2)
-                )
-                if (distance < closestDistance) {
-                    closestDistance = distance
-                    closestPlayer = id
-                }
-            }
-            
-            if (closestPlayer) {
-                localPlayerId = closestPlayer
-                console.log(`Local player ID identified: ${localPlayerId}`)
-            }
-        }
-        return originalEmit(event, ...args)
-    }
+    // Note: We no longer need to detect local player by movement since server sends yourPlayerId
 
     // Client-Side Message Sent To Game Server
     let sendMessageButton = document.getElementById('sendUserMessage')
@@ -931,6 +1159,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     //Update other player's position on screen
     socket.on('broadcastPlayerPosition', (movementData) => {
+        // CRITICAL: Ignore position updates for the local player
+        // The server broadcasts to ALL players including the sender, but we use client-side prediction
+        // Applying server updates to ourselves would override our local movement and cause teleporting
+        if (movementData.id === localPlayerId) {
+            return // Ignore our own position updates from server
+        }
+        
+        // Only apply server updates for other players
+        if (!playersInScene[movementData.id]) {
+            return // Player doesn't exist in scene
+        }
+        
         let currPosition = {x: playersInScene[movementData.id].x, y: playersInScene[movementData.id].y, z: playersInScene[movementData.id].z}
         
         // Cancel previous movement if new one comes in (optimization)

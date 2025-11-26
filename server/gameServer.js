@@ -208,14 +208,11 @@ const serverScenes = {
 
             const sceneArr = scenesMap.get(sceneId)
 
+            // Notify all other players in the scene that this player disconnected
             sceneArr.forEach(playerSocket => {
-
-                playerSocket.emit('userDisconnected', socket.user.id)
-
-                if (playerSocket != socket) {
-                    socket.emit('userDisconnected', playerSocket.user.id)
+                if (playerSocket !== socket) {
+                    playerSocket.emit('userDisconnected', socket.user.id)
                 }
-            
             })
         }
     },
@@ -266,6 +263,8 @@ const serverScenes = {
         serverScenes.removePlayerFromSceneMaps(socket)
         serverScenes.addPlayerToSceneMaps(socket, sceneId)
         socket.emit('recieveWorldData', sceneJson)
+        // Re-send player ID on scene change so client knows which player they are
+        socket.emit('yourPlayerId', socket.user.id)
         playerMonitor.emitPlayerMap(socket)
         playerMonitor.emitNewPlayer(socket)
 
@@ -547,8 +546,15 @@ const serverTyping = {
 // Functions for world data.
 const playerMonitor = {
     emitWorldDateTime: async () => {
-        worldDateTime = await getTimeFromAPI()
-        io.emit('sendWorldTime', worldDateTime)    
+        // Always try to get time from API, but always emit time (even if API fails)
+        const newTime = await getTimeFromAPI()
+        // If API succeeded, use the new time, otherwise keep the existing worldDateTime
+        if (newTime) {
+            worldDateTime = newTime
+        }
+        // Always emit the current world time, even if API failed
+        io.emit('sendWorldTime', worldDateTime)
+        console.log(`World time updated: ${worldDateTime}`)
     },
     addToPlayerMap: (socket) => {
         playersInServer.set(
@@ -632,6 +638,8 @@ io.on('connection', (socket) => {
     console.log(`${username} connected`)
 
     socket.emit('welcome', `Connection established.`)
+    // Send the user's own ID so client knows which player they control
+    socket.emit('yourPlayerId', socket.user.id)
     socket.emit('recieveWorldData', testScene1)
     socket.emit('sendWorldTime', worldDateTime)
 
@@ -653,7 +661,8 @@ io.on('connection', (socket) => {
         serverScenes.removePlayerFromScene(socket)
         playerMonitor.removeFromPlayerMap(socket)
         serverScenes.removePlayerFromSceneMaps(socket)
-        //io.emit('userDisconnected', socket.user.id)
+        // Emit disconnect to all players in the same scene
+        // This is already handled in removePlayerFromScene, but we ensure it happens
     })
 
     socket.on('sendGlobalUserMessage', (message) => {

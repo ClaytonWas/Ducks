@@ -24,13 +24,14 @@ export default class Movement {
         }
 
         // Pathfinding parameters
-        this.neighborIncrement = 0.15; // Increment for neighbor search
-        this.bufferDistance = 1.0; // Distance to stop before obstacles
-        this.pathfindingBuffer = 0.1; // Buffer for path finding collision checks
-        this.safetyMargin = 0.2; // Extra margin from obstacles
+        this.neighborIncrement = 0.25; // Increment for neighbor search (increased for better pathfinding)
+        this.bufferDistance = 0.8; // Distance to stop before obstacles (reduced slightly)
+        this.pathfindingBuffer = 0.15; // Buffer for path finding collision checks (increased for safety)
+        this.safetyMargin = 0.3; // Extra margin from obstacles (increased for better clearance)
         
         // A* parameters
-        this.closeEnoughDistance = 0.25; // Distance considered "arrived" at destination
+        this.closeEnoughDistance = 0.3; // Distance considered "arrived" at destination (slightly increased)
+        this.minMovementDistance = 0.1; // Minimum distance to trigger movement (prevents jitter)
         
         // Movement cancellation tracking for optimization
         this.activeMovements = new Map(); // Track active movement promises by playerId
@@ -65,12 +66,13 @@ export default class Movement {
         ];
 
         // Step 1: Check if all corners are above the floor
+        // Check all floor children, not just the first one
         for (const corner of cornerPoints) {
             this.raycaster.set(
                 new THREE.Vector3(corner.x, corner.y + 1, corner.z), 
                 new THREE.Vector3(0, -1, 0)
             );
-            const intersectsFloor = this.raycaster.intersectObject(this.floor.children[0]);
+            const intersectsFloor = this.raycaster.intersectObjects(this.floor.children, false);
             if (intersectsFloor.length === 0) return false;
         }
 
@@ -251,9 +253,10 @@ export default class Movement {
     
             let currPoint = currNode[0]
             
-            // Exit conditon is if minimal space remains between the current point or destination, 
-            // or if there are no obstacles in a straight line path from the current point to the destination
-            if ((this.euclidean_distance(currPoint, destPoint) <= 0.25) || (!this.#detectObstaclesBool(startPoint, destPoint))) {
+            // Exit condition: if we're close enough to destination, or if there are no obstacles 
+            // in a straight line path from the CURRENT point to the destination (not startPoint!)
+            if ((this.euclidean_distance(currPoint, destPoint) <= this.closeEnoughDistance) || 
+                (!this.#detectObstaclesBool(currPoint, destPoint))) {
                 var destPointApprox = currPoint
                 //console.log('Path found')
                 break
@@ -293,7 +296,7 @@ export default class Movement {
     }
 
     // Function move's the player in a straight line to the destination point
-    async linearMovementConstant(playerId, targetPoint, speed = this.defaultSpeed) {
+    async linearMovementConstant(playerId, targetPoint, speed = this.defaultSpeed, cancellationToken = null) {
         return new Promise((resolve) => {
             if (!this.playersInScene[playerId]) {
                 console.error(`Player with ID ${playerId} does not exist in the scene.`);
@@ -308,14 +311,32 @@ export default class Movement {
             const startPoint = {x: startX, y: startY, z: startZ};
             
             const totalDistance = this.euclidean_distance(startPoint, targetPoint);
+            
+            // Skip movement if distance is too small (prevents jitter)
+            if (totalDistance < 0.1) {
+                resolve();
+                return;
+            }
+            
             const duration = (totalDistance / speed) * 1000;
             
             const deltaX = targetPoint.x - startX;
             const deltaY = targetPoint.y - startY;
             const deltaZ = targetPoint.z - startZ;
             const startTime = performance.now();
+            
+            let animationFrameId = null;
     
             function animate(currentTime) {
+                // Check for cancellation
+                if (cancellationToken && cancellationToken.cancelled) {
+                    if (animationFrameId) {
+                        cancelAnimationFrame(animationFrameId);
+                    }
+                    resolve();
+                    return;
+                }
+                
                 const elapsedTime = currentTime - startTime;
                 const progress = Math.min(elapsedTime / duration, 1);
     
@@ -324,13 +345,12 @@ export default class Movement {
                 const incZ = startZ + deltaZ * progress;
     
                 player.mesh.position.set(incX, incY, incZ);
-
                 player.x = incX
                 player.y = incY
                 player.z = incZ
     
                 if (progress < 1) {
-                    requestAnimationFrame(animate);
+                    animationFrameId = requestAnimationFrame(animate);
                 } else {
                     player.mesh.position.set(targetPoint.x, targetPoint.y, targetPoint.z);
                     player.x = targetPoint.x;
@@ -340,7 +360,7 @@ export default class Movement {
                 }
             }
            
-            requestAnimationFrame(animate);
+            animationFrameId = requestAnimationFrame(animate);
         });
     }
 
@@ -448,17 +468,75 @@ export default class Movement {
         return pointBeforeIntersection;
     }
 
+    // Simple direct movement for continuous movement (hold down mouse)
+    // Just moves directly - if blocked, stops at obstacle. Much faster than pathfinding.
+    async simpleSteeringMovement(playerId, startPoint, destPoint) {
+        // Skip movement if distance is too small (prevents jitter)
+        const distance = this.euclidean_distance(startPoint, destPoint);
+        if (distance < this.minMovementDistance) {
+            return;
+        }
+        
+        // Cancel any existing movement for this player
+        if (this.activeMovements.has(playerId)) {
+            const prevMovement = this.activeMovements.get(playerId)
+            if (prevMovement) {
+                prevMovement.cancelled = true
+            }
+        }
+
+        const movementToken = { cancelled: false }
+        this.activeMovements.set(playerId, movementToken)
+
+        // Normalize destination Y
+        destPoint.y = startPoint.y
+
+        // For continuous movement: check for obstacles and stop before them
+        // Use full obstacle detection to get intersection point
+        let [intersectsFlag, intersectObjects] = this.#detectObstacles(startPoint, destPoint);
+    
+        if (intersectsFlag) {
+            // Path blocked - stop before the obstacle (same as masterMovement)
+            // This prevents moving through objects
+            const intersectionPoint = intersectObjects[0].point;
+            const pointBeforeIntersection = this.#getPointBeforeIntersection(startPoint, intersectionPoint);
+            
+            // Only move if there's meaningful distance to move
+            const distanceToStop = this.euclidean_distance(startPoint, pointBeforeIntersection);
+            if (distanceToStop >= this.minMovementDistance) {
+                await this.linearMovementConstant(playerId, pointBeforeIntersection, this.defaultSpeed, movementToken);
+            }
+            // If too close to obstacle, just stop (don't move at all)
+        } else {
+            // Path is clear, move directly
+            await this.linearMovementConstant(playerId, destPoint, this.defaultSpeed, movementToken);
+        }
+        
+        this.activeMovements.delete(playerId)
+    }
+
     // This function governs player movement
     // If the destination point lies along an unobstructed straight line from
     // the player's current positon, linear movement will be used for movement
     // If an obstacle lies between a player and the destination, a mixture of 
     // movement along an aStar path and linear movement will be used
-    async masterMovement(playerId, startPoint, destPoint) {
+    async masterMovement(playerId, startPoint, destPoint, useSimpleSteering = false) {
+        // Use simple steering for continuous movement (much faster)
+        if (useSimpleSteering) {
+            return this.simpleSteeringMovement(playerId, startPoint, destPoint);
+        }
+        
+        // Skip movement if distance is too small (prevents jitter)
+        const distance = this.euclidean_distance(startPoint, destPoint);
+        if (distance < this.minMovementDistance) {
+            return;
+        }
+        
         // Cancel any existing movement for this player (optimization)
         if (this.activeMovements.has(playerId)) {
             // Mark previous movement as cancelled - it will check and exit early
             const prevMovement = this.activeMovements.get(playerId)
-            if (prevMovement && prevMovement.cancel) {
+            if (prevMovement) {
                 prevMovement.cancelled = true
             }
         }
@@ -467,12 +545,14 @@ export default class Movement {
         const movementToken = { cancelled: false }
         this.activeMovements.set(playerId, movementToken)
 
+        // Normalize destination Y to match player's current Y (they're on the same plane)
+        destPoint.y = startPoint.y
+
         //Check if an obstacle lies between the player and destination point
         let [intersectsFlag, intersectObjects] = this.#detectObstacles(startPoint, destPoint);
-
-        destPoint.y += 0.5
     
         if (intersectsFlag) {
+            // Get the intersection point from the first intersection
             const intersectionPoint = intersectObjects[0].point;
             const pointBeforeIntersection = this.#getPointBeforeIntersection(startPoint, intersectionPoint);
             let path = this.#aStarSearch(pointBeforeIntersection, destPoint);
