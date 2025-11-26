@@ -663,6 +663,9 @@ io.on('connection', (socket) => {
         serverScenes.removePlayerFromSceneMaps(socket)
         // Emit disconnect to all players in the same scene
         // This is already handled in removePlayerFromScene, but we ensure it happens
+        
+        // Note: We don't clear activeSessions here because the user might reconnect
+        // Active sessions are cleared on explicit logout from profileServer
     })
 
     socket.on('sendGlobalUserMessage', (message) => {

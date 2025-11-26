@@ -23,6 +23,39 @@ const port = process.env.PORT || process.env.CLIENT_PORT || 3000                
 const secretKey = process.env.SECRET_KEY || process.env.JWT_SECRET || 'runescapefan'         // Secret key for signing session token.
 const gameServerUrl = process.env.GAME_SERVER_URL || 'http://localhost:3030'         // Game server URL for client connections.
 
+// Track active sessions/tokens per user to prevent duplicate logins
+// Maps user ID to their current active token and session info
+const activeSessions = new Map()
+
+// Clean up expired sessions periodically (every 5 minutes)
+setInterval(() => {
+    const now = Math.floor(Date.now() / 1000) // Current time in seconds
+    
+    for (const [userId, sessionInfo] of activeSessions.entries()) {
+        try {
+            // Decode token to check expiration
+            const decoded = jsonWebToken.decode(sessionInfo.token)
+            
+            if (!decoded || !decoded.exp) {
+                // Token has no expiration - remove it
+                activeSessions.delete(userId)
+                console.log(`Cleaned up session with invalid token for user ID: ${userId}`)
+                continue
+            }
+            
+            // Check if token is expired (exp is in seconds)
+            if (decoded.exp < now) {
+                activeSessions.delete(userId)
+                console.log(`Cleaned up expired session for user ID: ${userId}`)
+            }
+        } catch (error) {
+            // Error decoding token - remove it
+            activeSessions.delete(userId)
+            console.log(`Cleaned up session with unreadable token for user ID: ${userId}`)
+        }
+    }
+}, 5 * 60 * 1000) // Check every 5 minutes
+
 
 
 // EJS view engine for dynamic HTML updates
@@ -121,17 +154,71 @@ app.post('/login', (req, res) => {
                     console.error(error)
                     return res.status(500).json({message: 'The server encountered an error authenticating your login.'})
                 } else if(matches){
-                    /*
-                    *   On valid logins, the express-session browser is assigned with the data of the row.
-                    *       ^       (this is pretty unsafe and in production should just be the accounts id and username)
-                    */
-                    req.session.user = row
-                    token = jsonWebToken.sign(
-                        {id: req.session.user.id, username: req.session.user.username, shape: req.session.user.shape, color: req.session.user.color},
-                        secretKey,
-                        {expiresIn: '3h'}
-                    )
-                    return res.status(200).json({token})
+                    // Check if user already has an active session
+                    const userId = row.id
+                    
+                    // Helper function to complete login
+                    const completeLogin = () => {
+                        /*
+                        *   On valid logins, the express-session browser is assigned with the data of the row.
+                        *       ^       (this is pretty unsafe and in production should just be the accounts id and username)
+                        */
+                        req.session.user = row
+                        const token = jsonWebToken.sign(
+                            {id: req.session.user.id, username: req.session.user.username, shape: req.session.user.shape, color: req.session.user.color},
+                            secretKey,
+                            {expiresIn: '3h'}
+                        )
+                        
+                        // Track this active session
+                        activeSessions.set(userId, {
+                            token: token,
+                            sessionId: req.sessionID,
+                            loginTime: Date.now()
+                        })
+                        
+                        return res.status(200).json({token})
+                    }
+                    
+                    if (activeSessions.has(userId)) {
+                        // Check if the existing token is still valid (not expired)
+                        const existingSession = activeSessions.get(userId)
+                        
+                        // Verify the existing token synchronously (decode without verification first to check expiration)
+                        try {
+                            // Decode without verification to check expiration
+                            const decoded = jsonWebToken.decode(existingSession.token)
+                            
+                            if (!decoded || !decoded.exp) {
+                                // Token has no expiration or is malformed - clear and allow login
+                                activeSessions.delete(userId)
+                                console.log(`Cleared invalid session for user ID: ${userId}`)
+                                return completeLogin()
+                            }
+                            
+                            // Check if token is expired (exp is in seconds, Date.now() is in milliseconds)
+                            const now = Math.floor(Date.now() / 1000)
+                            if (decoded.exp < now) {
+                                // Token is expired - clear the session and allow new login
+                                activeSessions.delete(userId)
+                                console.log(`Cleared expired session for user ID: ${userId}`)
+                                return completeLogin()
+                            }
+                            
+                            // Token is still valid - reject new login
+                            return res.status(409).json({
+                                message: 'This account is already logged in. Please log out from the other session first.'
+                            })
+                        } catch (error) {
+                            // Error decoding token - clear session and allow new login
+                            activeSessions.delete(userId)
+                            console.log(`Cleared invalid session for user ID: ${userId}`, error.message)
+                            return completeLogin()
+                        }
+                    } else {
+                        // No existing session - proceed with login
+                        return completeLogin()
+                    }
                 }else{
                     console.error(error)
                     return res.status(401).json({message: 'Invalid password.'})
@@ -189,13 +276,35 @@ app.get('/home', (req, res) => {
     }
 })
 
-// GET route for logging out
+// GET route for logging out (web browser redirect)
 app.get('/logout', (req, res) => {
+    // Remove from active sessions if user was logged in
+    if (req.session.user && req.session.user.id) {
+        activeSessions.delete(req.session.user.id)
+        console.log(`User ${req.session.user.username} logged out (session cleared)`)
+    }
+    
     req.session.destroy((error) => {
         if (error) {
             return res.send('Error logging out')
         }
         res.redirect('/')
+    })
+})
+
+// POST route for logging out (API call)
+app.post('/logout', (req, res) => {
+    // Remove from active sessions if user was logged in
+    if (req.session.user && req.session.user.id) {
+        activeSessions.delete(req.session.user.id)
+        console.log(`User ${req.session.user.username} logged out via API (session cleared)`)
+    }
+    
+    req.session.destroy((error) => {
+        if (error) {
+            return res.status(500).json({message: 'Error logging out'})
+        }
+        res.status(200).json({message: 'Logged out successfully'})
     })
 })
 
