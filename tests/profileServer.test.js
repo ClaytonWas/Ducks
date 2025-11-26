@@ -3,6 +3,15 @@ const fs = require('fs')
 const path = require('path')
 const app = require('../client/profileServer.js')
 
+// Clean up intervals and database connections after all tests
+afterAll(async () => {
+    if (app.cleanup) {
+        app.cleanup()
+    }
+    // Give time for cleanup to complete
+    await new Promise(resolve => setTimeout(resolve, 100))
+})
+
 describe('GET /', () => {
     it('should respond with a 200 status and index.html', async () => {
         const response = await request(app).get('/')

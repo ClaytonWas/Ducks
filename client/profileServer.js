@@ -28,7 +28,7 @@ const gameServerUrl = process.env.GAME_SERVER_URL || 'http://localhost:3030'    
 const activeSessions = new Map()
 
 // Clean up expired sessions periodically (every 5 minutes)
-setInterval(() => {
+const sessionCleanupInterval = setInterval(() => {
     const now = Math.floor(Date.now() / 1000) // Current time in seconds
     
     for (const [userId, sessionInfo] of activeSessions.entries()) {
@@ -55,6 +55,20 @@ setInterval(() => {
         }
     }
 }, 5 * 60 * 1000) // Check every 5 minutes
+
+// Cleanup function for tests
+const cleanup = () => {
+    if (sessionCleanupInterval) {
+        clearInterval(sessionCleanupInterval)
+    }
+    if (db) {
+        db.close((error) => {
+            if (error) {
+                console.error('Error closing database:', error)
+            }
+        })
+    }
+}
 
 
 
@@ -385,3 +399,4 @@ if (process.env.NODE_ENV !== 'test') {
 }
   
 module.exports = app
+module.exports.cleanup = cleanup
